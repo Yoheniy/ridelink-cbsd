@@ -1,0 +1,34 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+ridelink_app/android/.gradle/
+ridelink_app/android/app/build/
+ridelink_app/android/build/
+*.apk
+*.aab
+
+# iOS
+ridelink_app/ios/Pods/
+ridelink_app/ios/.symlinks/
+
+# Node.js
+node_modules/
+dist/
+.env
+.env.local
+
+# Convex
+.convex/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

@@ -1,0 +1,141 @@
+enum BookingStatus {
+    pending
+    confirmed
+    canceled
+    completed
+}
+
+enum TripStatus {
+    scheduled
+    inProgress
+    completed
+    canceled
+}
+
+enum SubscriptionType {
+    weekly
+    monthly
+}
+
+// TripSeries: a recurring trip template (e.g. "every weekday at 08:00")
+model TripSeries {
+    id               String @id @default(uuid())
+    driverId         String
+    driver           Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+    origin           String
+    destination      String
+    routeCoordinates Json // Array of {lat: Float, lng: Float} — template route
+    distanceKm       Float
+    availableSeats   Int
+    pricePerSeat     Float
+
+    // Recurrence definition
+    daysOfWeek         Int[]
+    departureTimeOfDay String
+    startDate          DateTime
+    endDate            DateTime?
+    exceptions         Json? // array of ISO date strings to skip
+    isActive           Boolean   @default(true)
+
+    // Subscription config on the series
+    subscriptionOptions SubscriptionType[]
+    subscriptionPricing Json? // {weekly?: Float, monthly?: Float}
+
+    // Generation tracking
+    generatedUntil DateTime? // latest date for which trip occurrences have been generated
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    trips             Trip[]
+    tripSubscriptions TripSubscription[]
+
+    @@index([driverId])
+    @@index([isActive])
+    @@index([origin, destination])
+    @@map("trip_series")
+}
+
+// Trip: a concrete ride occurrence (one-time or generated from a series)
+model Trip {
+    id               String     @id @default(uuid())
+    driverId         String
+    driver           Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+    origin           String
+    destination      String
+    routeCoordinates Json
+    distanceKm       Float
+    departureTime    DateTime
+    availableSeats   Int
+    pricePerSeat     Float
+    status           TripStatus @default(scheduled)
+    createdAt        DateTime   @default(now())
+    updatedAt        DateTime   @updatedAt
+
+    // Link to series (null for one-time trips)
+    seriesId String?
+    series   TripSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+
+    bookings Booking[]
+
+    @@index([driverId])
+    @@index([seriesId])
+    @@index([departureTime])
+    @@index([status])
+    @@index([origin])
+    @@index([destination])
+    @@index([origin, destination])
+    @@index([departureTime, status])
+    @@map("trip")
+}
+
+// Booking: a seat reservation on a specific Trip occurrence
+model Booking {
+    id           String        @id @default(uuid())
+    tripId       String
+    trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+    passengerId  String
+    passenger    Passenger     @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+    seatsBooked  Int           @default(1)
+    totalPrice   Float
+    pickUpPoint  String?
+    dropOffPoint String?
+    status       BookingStatus @default(pending)
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+
+    // Subscription linkage (null for one-off bookings)
+    isSubscription Boolean           @default(false)
+    subscriptionId String?
+    subscription   TripSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+    @@unique([tripId, passengerId]) // prevent duplicate bookings
+    @@index([tripId])
+    @@index([passengerId])
+    @@index([subscriptionId])
+    @@index([status])
+    @@map("booking")
+}
+
+// TripSubscription: an ongoing subscription to a TripSeries
+model TripSubscription {
+    id               String           @id @default(uuid())
+    seriesId         String
+    series           TripSeries       @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+    passengerId      String
+    passenger        Passenger        @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+    subscriptionType SubscriptionType
+    seatsSubscribed  Int              @default(1)
+    pricePerPeriod   Float
+    startDate        DateTime
+    endDate          DateTime?
+    isActive         Boolean          @default(true)
+    createdAt        DateTime         @default(now())
+    updatedAt        DateTime         @updatedAt
+    bookings         Booking[]
+
+    @@unique([seriesId, passengerId]) // one subscription per passenger per series
+    @@index([seriesId])
+    @@index([passengerId])
+    @@index([isActive])
+    @@map("trip_subscription")
+}

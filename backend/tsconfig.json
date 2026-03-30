@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"outDir": "dist",
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"]
+		},
+		"jsx": "react-jsx"
+	},
+	"include": [
+		"src/**/*.ts",
+		"tests/**/*.ts",
+		"vitest.config.ts",
+		"prisma/**/*.ts"
+	],
+	"exclude": ["node_modules"]
+}

@@ -1,0 +1,35 @@
+generator client {
+    provider     = "prisma-client"
+    output       = "../generated"
+    moduleFormat = "esm"
+    runtime      = "nodejs"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model Passenger {
+    id                String             @id @default(uuid())
+    prefferedRoutes   String[]
+    user              User               @relation(fields: [userId], references: [id])
+    userId            String             @unique
+    bookings          Booking[]
+    tripSubscriptions TripSubscription[]
+
+    @@map("passenger")
+}
+
+model Driver {
+    id            String       @id @default(uuid())
+    licenseNumber String
+    vehicleModel  String
+    vehiclePlate  String
+    vehicleSeats  Int
+    user          User         @relation(fields: [userId], references: [id])
+    userId        String       @unique
+    trips         Trip[]
+    tripSeries    TripSeries[]
+
+    @@map("driver")
+}

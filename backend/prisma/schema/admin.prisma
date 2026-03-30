@@ -1,0 +1,66 @@
+enum FeedbackType {
+    rating
+    report
+}
+
+enum IncidentAction {
+    warning_issued
+    user_suspended
+    user_banned
+    case_dismissed
+    under_review
+    escalated
+    resolved
+}
+
+enum IncidentStatus {
+    open
+    in_progress
+    closed
+}
+
+model Feedback {
+    id         String        @id @default(uuid())
+    type       FeedbackType
+    fromUserId String
+    fromUser   User          @relation("feedbackFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+    toUserId   String
+    toUser     User          @relation("feedbackTo", fields: [toUserId], references: [id], onDelete: Cascade)
+    tripId     String?
+    rating     Int? // 1-5 star rating, required when type is "rating"
+    comment    String?
+    incidents  IncidentLog[]
+    createdAt  DateTime      @default(now())
+    updatedAt  DateTime      @updatedAt
+
+    @@index([fromUserId])
+    @@index([toUserId])
+    @@index([type])
+    @@index([tripId])
+    @@map("feedback")
+}
+
+model IncidentLog {
+    id           String         @id @default(uuid())
+    feedbackId   String?
+    feedback     Feedback?      @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
+    sosAlertId   String? // Convex emergency alert ID
+    sosReason    String? // Duplicated from the SOS alert reason
+    action       IncidentAction
+    status       IncidentStatus @default(open)
+    notes        String?
+    adminId      String
+    admin        User           @relation("incidentAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+    targetUserId String?
+    targetUser   User?          @relation("incidentTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+
+    @@index([feedbackId])
+    @@index([sosAlertId])
+    @@index([adminId])
+    @@index([targetUserId])
+    @@index([status])
+    @@index([action])
+    @@map("incident_log")
+}
