@@ -13,6 +13,7 @@ import 'core/theme/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/providers/chat_provider.dart';
 import 'features/driver/trip/providers/trip_provider.dart';
+import 'features/driver/trip/repositories/trip_repository.dart';
 import 'features/driver/trip/providers/trip_series_provider.dart';
 import 'features/emergency/providers/emergency_provider.dart';
 import 'features/feedback/providers/feedback_provider.dart';
@@ -30,6 +31,9 @@ Future<void> main() async {
   final locationService = LocationService();
   final gebetaMapsService = GebetaMapsService();
   final chapaService = ChapaService();
+
+  // Repositories (Repository Pattern: decouple data access from state management)
+  final tripRepository = ApiTripRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
@@ -78,7 +82,7 @@ Future<void> main() async {
 
         // Trip & booking
         ChangeNotifierProvider(
-            create: (_) => TripProvider(apiClient, storageService)),
+            create: (_) => TripProvider(tripRepository, storageService)),
         ChangeNotifierProvider(
           create: (_) => SearchProvider(apiClient, gebetaMapsService),
         ),

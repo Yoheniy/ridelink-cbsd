@@ -1,16 +1,17 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/enums.dart';
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../passenger/booking/models/booking_model.dart';
 import '../models/trip_model.dart';
+import '../repositories/trip_repository.dart';
 
 export '../models/trip_model.dart';
 
+/// Manages trip-related UI state. Delegates all data access to [TripRepository],
+/// keeping this class focused on state transitions and view notifications.
 class TripProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final TripRepository _repository;
   final StorageService _storage;
 
   List<TripModel> _driverTrips = [];
@@ -48,7 +49,7 @@ class TripProvider extends ChangeNotifier {
     ),
   ];
 
-  TripProvider(this._apiClient, this._storage);
+  TripProvider(this._repository, this._storage);
 
   Future<void> loadDriverTrips() async {
     _loading = true;
@@ -64,14 +65,7 @@ class TripProvider extends ChangeNotifier {
         return;
       }
 
-      final response =
-          await _apiClient.get(ApiEndpoints.driverTrips(driverId));
-      final list = response.data as List?;
-      if (list != null) {
-        _driverTrips = list
-            .map((e) => TripModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      _driverTrips = await _repository.getDriverTrips(driverId);
     } catch (e) {
       debugPrint('Failed to load trips: $e');
       _driverTrips = _mockTrips;
@@ -83,13 +77,9 @@ class TripProvider extends ChangeNotifier {
 
   Future<TripModel?> getTripById(String id) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.tripById(id));
-      final data = response.data as Map<String, dynamic>?;
-      if (data != null) {
-        _selectedTrip = TripModel.fromJson(data);
-        notifyListeners();
-        return _selectedTrip;
-      }
+      _selectedTrip = await _repository.getTripById(id);
+      notifyListeners();
+      return _selectedTrip;
     } catch (e) {
       debugPrint('Failed to load trip: $e');
     }
@@ -111,7 +101,7 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.post(ApiEndpoints.trips, data: {
+      final success = await _repository.createTrip({
         'driverId': driverId,
         'origin': origin,
         'destination': destination,
@@ -123,7 +113,7 @@ class TripProvider extends ChangeNotifier {
       });
       _loading = false;
       notifyListeners();
-      return true;
+      return success;
     } catch (e) {
       debugPrint('Failed to create trip: $e');
       _error = 'Failed to create trip';
@@ -135,11 +125,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> updateTripStatus(String tripId, TripStatus status) async {
     try {
-      await _apiClient.patch(
-        ApiEndpoints.tripStatus(tripId),
-        data: {'status': status.name},
-      );
-      return true;
+      return await _repository.updateTripStatus(tripId, status);
     } catch (e) {
       debugPrint('Failed to update trip status: $e');
       return false;
@@ -148,8 +134,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> acceptBooking(String bookingId) async {
     try {
-      await _apiClient.patch(ApiEndpoints.acceptBooking(bookingId));
-      return true;
+      return await _repository.acceptBooking(bookingId);
     } catch (e) {
       debugPrint('Failed to accept booking: $e');
       return false;
@@ -158,8 +143,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> declineBooking(String bookingId) async {
     try {
-      await _apiClient.patch(ApiEndpoints.declineBooking(bookingId));
-      return true;
+      return await _repository.declineBooking(bookingId);
     } catch (e) {
       debugPrint('Failed to decline booking: $e');
       return false;
@@ -168,16 +152,9 @@ class TripProvider extends ChangeNotifier {
 
   Future<List<BookingModel>> loadTripBookings(String tripId) async {
     try {
-      final response =
-          await _apiClient.get(ApiEndpoints.tripBookings(tripId));
-      final list = response.data as List?;
-      if (list != null) {
-        _tripBookings = list
-            .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-        notifyListeners();
-        return _tripBookings;
-      }
+      _tripBookings = await _repository.getTripBookings(tripId);
+      notifyListeners();
+      return _tripBookings;
     } catch (e) {
       debugPrint('Failed to load trip bookings: $e');
     }
@@ -186,8 +163,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> updateTrip(String tripId, Map<String, dynamic> data) async {
     try {
-      await _apiClient.patch(ApiEndpoints.tripById(tripId), data: data);
-      return true;
+      return await _repository.updateTrip(tripId, data);
     } catch (e) {
       debugPrint('Failed to update trip: $e');
       return false;
@@ -196,10 +172,12 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> deleteTrip(String tripId) async {
     try {
-      await _apiClient.delete(ApiEndpoints.tripById(tripId));
-      _driverTrips.removeWhere((t) => t.id == tripId);
-      notifyListeners();
-      return true;
+      final success = await _repository.deleteTrip(tripId);
+      if (success) {
+        _driverTrips.removeWhere((t) => t.id == tripId);
+        notifyListeners();
+      }
+      return success;
     } catch (e) {
       debugPrint('Failed to delete trip: $e');
       return false;
