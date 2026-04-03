@@ -1,0 +1,30 @@
+# X-MAN style component view (RideLink mobile)
+
+Use this section in the **Component Model Practice** tab of your Google Doc. X-MAN stresses **composition**: components expose **provided** interfaces and declare **required** interfaces; wiring is **exogenous** (outside the component, e.g. `main.dart`).
+
+## Trip Management component
+
+| Role | Content |
+|------|--------|
+| **Computation unit** | `TripProvider`: loading flags, selected trip, driver trip list, demo fallback |
+| **Provided interface** | `loadDriverTrips`, `getTripById`, `createTrip`, `updateTripStatus`, `acceptBooking`, `declineBooking`, `loadTripBookings`, `updateTrip`, `deleteTrip` |
+| **Required interface** | `TripRepository` (trip/booking HTTP), `StorageService` (driver id, demo mode) |
+| **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiTripRepository(apiClient)` + `storageService` |
+
+**Why Repository fits X-MAN:** `TripRepository` is a **replaceable** required interface. You can swap `ApiTripRepository` with a mock in tests or a cached implementation without changing `TripProvider`.
+
+## Booking component
+
+| Role | Content |
+|------|--------|
+| **Computation unit** | `BookingProvider`: list of bookings, active booking, error string |
+| **Provided interface** | `loadBookings`, `requestBooking`, `getBookingById`, `cancelBooking` |
+| **Required interface** | `BookingRepository`, `StorageService` (passenger id, demo mode) |
+| **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiBookingRepository(apiClient)` + `storageService` |
+
+## Component model test simulation (idea for your log)
+
+- **Simulation A:** Replace `ApiTripRepository` with a fake that returns fixed `TripModel` lists; `TripProvider` should still update UI state without knowing HTTP.
+- **Simulation B:** Same for `BookingRepository` and passenger booking flows.
+
+Documenting these swaps in your Google Doc satisfies “component model test simulations.”
