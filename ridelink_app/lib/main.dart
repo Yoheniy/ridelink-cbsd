@@ -19,6 +19,7 @@ import 'features/emergency/providers/emergency_provider.dart';
 import 'features/feedback/providers/feedback_provider.dart';
 import 'features/notifications/providers/notification_provider.dart';
 import 'features/passenger/booking/providers/booking_provider.dart';
+import 'features/passenger/booking/repositories/booking_repository.dart';
 import 'features/passenger/search/providers/search_provider.dart';
 import 'features/payment/providers/payment_provider.dart';
 import 'features/tracking/providers/tracking_provider.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
 
   // Repositories (Repository Pattern: decouple data access from state management)
   final tripRepository = ApiTripRepository(apiClient);
+  final bookingRepository = ApiBookingRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
@@ -87,7 +89,7 @@ Future<void> main() async {
           create: (_) => SearchProvider(apiClient, gebetaMapsService),
         ),
         ChangeNotifierProvider(
-            create: (_) => BookingProvider(apiClient, storageService)),
+            create: (_) => BookingProvider(bookingRepository, storageService)),
         ChangeNotifierProvider(
             create: (_) => TripSeriesProvider(apiClient, storageService)),
 

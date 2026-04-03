@@ -1,14 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/services/storage_service.dart';
 import '../models/booking_model.dart';
+import '../repositories/booking_repository.dart';
 
 export '../models/booking_model.dart';
 
+/// Manages booking-related UI state; delegates persistence to [BookingRepository].
 class BookingProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final BookingRepository _repository;
   final StorageService _storage;
 
   List<BookingModel> _bookings = [];
@@ -21,7 +21,7 @@ class BookingProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
-  BookingProvider(this._apiClient, this._storage);
+  BookingProvider(this._repository, this._storage);
 
   Future<void> loadBookings() async {
     _loading = true;
@@ -37,14 +37,7 @@ class BookingProvider extends ChangeNotifier {
         return;
       }
 
-      final response =
-          await _apiClient.get(ApiEndpoints.passengerBookings(passengerId));
-      final list = response.data as List?;
-      if (list != null) {
-        _bookings = list
-            .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      _bookings = await _repository.getPassengerBookings(passengerId);
     } catch (e) {
       debugPrint('Failed to load bookings: $e');
       _error = 'Failed to load bookings';
@@ -67,21 +60,14 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiClient.post(
-        ApiEndpoints.createBooking,
-        data: {
-          'tripId': tripId,
-          'passengerId': passengerId,
-          'seatsBooked': seatsBooked,
-          'totalPrice': totalPrice,
-          if (pickUpPoint != null) 'pickUpPoint': pickUpPoint,
-          if (dropOffPoint != null) 'dropOffPoint': dropOffPoint,
-        },
+      _activeBooking = await _repository.requestBooking(
+        tripId: tripId,
+        passengerId: passengerId,
+        seatsBooked: seatsBooked,
+        totalPrice: totalPrice,
+        pickUpPoint: pickUpPoint,
+        dropOffPoint: dropOffPoint,
       );
-      final data = response.data as Map<String, dynamic>?;
-      if (data != null) {
-        _activeBooking = BookingModel.fromJson(data);
-      }
       _loading = false;
       notifyListeners();
       return true;
@@ -96,14 +82,9 @@ class BookingProvider extends ChangeNotifier {
 
   Future<BookingModel?> getBookingById(String bookingId) async {
     try {
-      final response =
-          await _apiClient.get(ApiEndpoints.bookingById(bookingId));
-      final data = response.data as Map<String, dynamic>?;
-      if (data != null) {
-        _activeBooking = BookingModel.fromJson(data);
-        notifyListeners();
-        return _activeBooking;
-      }
+      _activeBooking = await _repository.getBookingById(bookingId);
+      notifyListeners();
+      return _activeBooking;
     } catch (e) {
       debugPrint('Failed to load booking: $e');
     }
@@ -112,11 +93,13 @@ class BookingProvider extends ChangeNotifier {
 
   Future<bool> cancelBooking(String bookingId) async {
     try {
-      await _apiClient.patch(ApiEndpoints.cancelBooking(bookingId));
-      _bookings.removeWhere((b) => b.id == bookingId);
-      if (_activeBooking?.id == bookingId) _activeBooking = null;
-      notifyListeners();
-      return true;
+      final success = await _repository.cancelBooking(bookingId);
+      if (success) {
+        _bookings.removeWhere((b) => b.id == bookingId);
+        if (_activeBooking?.id == bookingId) _activeBooking = null;
+        notifyListeners();
+      }
+      return success;
     } catch (e) {
       debugPrint('Failed to cancel booking: $e');
       return false;
