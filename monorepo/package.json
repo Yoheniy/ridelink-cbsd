@@ -1,0 +1,16 @@
+{
+  "name": "ridelink-cbsd-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "npm@10",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "dev": "npm run -w @ridelink/feature-x-app dev",
+    "dev:y": "npm run -w @ridelink/feature-y-app dev",
+    "lint": "npm run -ws lint"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@ridelink/feature-x-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "build": "node -e \"console.log('(@ridelink/feature-x-app) no build step')\"",
+    "lint": "echo \"(feature-x-app) lint skipped\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "System assembly app for feature-x (composition only).",
+  "dependencies": {
+    "@ridelink/feature-x": "0.0.0",
+    "@ridelink/ui-components": "0.0.0",
+    "@ridelink/utils": "0.0.0"
+  }
+}
