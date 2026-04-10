@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/enums.dart';
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/services/gebeta_maps_service.dart';
 import '../../../driver/trip/models/trip_model.dart';
+import '../repositories/search_repository.dart';
 
 enum SortMode { recommended, price, rating, time, seats }
 
+/// UI state and geocoding for search; trip list fetch goes through [SearchRepository].
 class SearchProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final SearchRepository _repository;
   final GebetaMapsService _mapsService;
 
   List<TripModel> _searchResults = [];
@@ -32,7 +32,7 @@ class SearchProvider extends ChangeNotifier {
 
   int get totalResults => _searchResults.length;
 
-  SearchProvider(this._apiClient, this._mapsService);
+  SearchProvider(this._repository, this._mapsService);
 
   Future<void> searchTrips({
     required String origin,
@@ -68,24 +68,14 @@ class SearchProvider extends ChangeNotifier {
     }
 
     try {
-      final response = await _apiClient.get(
-        ApiEndpoints.trips,
-        queryParameters: {
-          'origin': origin,
-          'destination': destination,
-          'status': 'scheduled',
-          if (oLat != null) 'originLat': oLat,
-          if (oLng != null) 'originLng': oLng,
-          if (dLat != null) 'destLat': dLat,
-          if (dLng != null) 'destLng': dLng,
-        },
+      _searchResults = await _repository.findScheduledTrips(
+        origin: origin,
+        destination: destination,
+        originLat: oLat,
+        originLng: oLng,
+        destLat: dLat,
+        destLng: dLng,
       );
-      final list = response.data as List?;
-      if (list != null) {
-        _searchResults = list
-            .map((e) => TripModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
       _error = null;
     } catch (e) {
       debugPrint('Search failed: $e');
@@ -182,19 +172,15 @@ class SearchProvider extends ChangeNotifier {
     for (final trip in trips) {
       double score = 0;
 
-      // Rating factor (0-40 points): higher is better
       final rating = trip.driverRating ?? 3.0;
       score += (rating / 5.0) * 40;
 
-      // Price factor (0-25 points): lower is better
       if (priceRange > 0) {
         score += (1 - (trip.pricePerSeat - minPrice) / priceRange) * 25;
       } else {
         score += 25;
       }
 
-      // Time proximity factor (0-20 points): closer departures score higher,
-      // but penalise trips departing in under 15 minutes (too soon to reach)
       final minutesUntil =
           trip.departureTime.difference(now).inMinutes.toDouble();
       if (minutesUntil < 15) {
@@ -207,7 +193,6 @@ class SearchProvider extends ChangeNotifier {
         score += 8;
       }
 
-      // If user set a preferred time, bonus for trips near that time
       if (_preferredTime != null) {
         final prefMinutes =
             _preferredTime!.hour * 60 + _preferredTime!.minute;
@@ -221,7 +206,6 @@ class SearchProvider extends ChangeNotifier {
         }
       }
 
-      // Seat availability factor (0-15 points)
       final seatRatio = trip.seatsLeft / (trip.availableSeats.clamp(1, 100));
       score += seatRatio * 15;
 

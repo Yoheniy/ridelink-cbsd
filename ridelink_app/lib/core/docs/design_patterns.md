@@ -10,8 +10,11 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 |-----------|----------------|---------|
 | `TripRepository` | `ApiTripRepository` | `TripProvider` |
 | `BookingRepository` | `ApiBookingRepository` | `BookingProvider` |
+| `SearchRepository` | `ApiSearchRepository` | `SearchProvider` |
 
-**Files:** `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`
+**Files:** `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`, `features/passenger/search/repositories/`
+
+`SearchProvider` still owns **geocoding** via `GebetaMapsService`; only the **GET /trips** query lives in `SearchRepository`.
 
 ## Observer Pattern
 
@@ -33,7 +36,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
-Repositories are created next to `ApiClient`, then passed into `TripProvider` / `BookingProvider`.
+Repositories are created next to `ApiClient`, then passed into `TripProvider`, `BookingProvider`, and `SearchProvider`.
 
 **File:** `main.dart`
 
