@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/services/storage_service.dart';
-import '../models/trip_series_model.dart';
 import '../../../passenger/booking/models/trip_subscription_model.dart';
+import '../models/trip_series_model.dart';
+import '../repositories/trip_series_repository.dart';
 
+/// State for recurring trip series and passenger subscriptions.
+/// Data access goes through [TripSeriesRepository].
 class TripSeriesProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final TripSeriesRepository _repository;
   final StorageService _storage;
 
   List<TripSeriesModel> _series = [];
@@ -20,7 +21,7 @@ class TripSeriesProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
-  TripSeriesProvider(this._apiClient, this._storage);
+  TripSeriesProvider(this._repository, this._storage);
 
   Future<void> loadDriverSeries() async {
     _loading = true;
@@ -29,18 +30,7 @@ class TripSeriesProvider extends ChangeNotifier {
 
     try {
       final driverId = await _storage.getDriverId();
-      final response = await _apiClient.get(
-        ApiEndpoints.series,
-        queryParameters: {
-          if (driverId != null) 'driverId': driverId,
-        },
-      );
-      final list = response.data as List?;
-      if (list != null) {
-        _series = list
-            .map((e) => TripSeriesModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      _series = await _repository.listSeries(driverId: driverId);
     } catch (e) {
       debugPrint('Failed to load series: $e');
       _error = 'Failed to load trip series';
@@ -56,10 +46,7 @@ class TripSeriesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.post(
-        ApiEndpoints.series,
-        data: seriesData.toCreateJson(),
-      );
+      await _repository.createSeries(seriesData.toCreateJson());
       _loading = false;
       notifyListeners();
       return true;
@@ -74,10 +61,12 @@ class TripSeriesProvider extends ChangeNotifier {
 
   Future<bool> deactivateSeries(String seriesId) async {
     try {
-      await _apiClient.patch(ApiEndpoints.deactivateSeries(seriesId));
-      _series.removeWhere((s) => s.id == seriesId);
-      notifyListeners();
-      return true;
+      final ok = await _repository.deactivateSeries(seriesId);
+      if (ok) {
+        _series.removeWhere((s) => s.id == seriesId);
+        notifyListeners();
+      }
+      return ok;
     } catch (e) {
       debugPrint('Failed to deactivate series: $e');
       return false;
@@ -86,8 +75,7 @@ class TripSeriesProvider extends ChangeNotifier {
 
   Future<bool> generateTrips(String seriesId) async {
     try {
-      await _apiClient.post(ApiEndpoints.generateTrips(seriesId));
-      return true;
+      return await _repository.generateTrips(seriesId);
     } catch (e) {
       debugPrint('Failed to generate trips: $e');
       return false;
@@ -108,15 +96,8 @@ class TripSeriesProvider extends ChangeNotifier {
         return;
       }
 
-      final response = await _apiClient
-          .get(ApiEndpoints.passengerSubscriptions(passengerId));
-      final list = response.data as List?;
-      if (list != null) {
-        _subscriptions = list
-            .map((e) =>
-                TripSubscriptionModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      _subscriptions =
+          await _repository.listPassengerSubscriptions(passengerId);
     } catch (e) {
       debugPrint('Failed to load subscriptions: $e');
       _error = 'Failed to load subscriptions';
@@ -138,17 +119,14 @@ class TripSeriesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.post(
-        ApiEndpoints.createSubscription,
-        data: {
-          'seriesId': seriesId,
-          'passengerId': passengerId,
-          'subscriptionType': subscriptionType,
-          'seatsSubscribed': seatsSubscribed,
-          'pricePerPeriod': pricePerPeriod,
-          'startDate': DateTime.now().toIso8601String(),
-        },
-      );
+      await _repository.createSubscription({
+        'seriesId': seriesId,
+        'passengerId': passengerId,
+        'subscriptionType': subscriptionType,
+        'seatsSubscribed': seatsSubscribed,
+        'pricePerPeriod': pricePerPeriod,
+        'startDate': DateTime.now().toIso8601String(),
+      });
       _loading = false;
       notifyListeners();
       return true;
@@ -163,10 +141,12 @@ class TripSeriesProvider extends ChangeNotifier {
 
   Future<bool> cancelSubscription(String subscriptionId) async {
     try {
-      await _apiClient.patch(ApiEndpoints.cancelSubscription(subscriptionId));
-      _subscriptions.removeWhere((s) => s.id == subscriptionId);
-      notifyListeners();
-      return true;
+      final ok = await _repository.cancelSubscription(subscriptionId);
+      if (ok) {
+        _subscriptions.removeWhere((s) => s.id == subscriptionId);
+        notifyListeners();
+      }
+      return ok;
     } catch (e) {
       debugPrint('Failed to cancel subscription: $e');
       return false;

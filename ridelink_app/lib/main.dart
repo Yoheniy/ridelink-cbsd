@@ -15,6 +15,7 @@ import 'features/chat/providers/chat_provider.dart';
 import 'features/driver/trip/providers/trip_provider.dart';
 import 'features/driver/trip/repositories/trip_repository.dart';
 import 'features/driver/trip/providers/trip_series_provider.dart';
+import 'features/driver/trip/repositories/trip_series_repository.dart';
 import 'features/emergency/providers/emergency_provider.dart';
 import 'features/feedback/providers/feedback_provider.dart';
 import 'features/notifications/providers/notification_provider.dart';
@@ -38,6 +39,7 @@ Future<void> main() async {
   final tripRepository = ApiTripRepository(apiClient);
   final bookingRepository = ApiBookingRepository(apiClient);
   final searchRepository = ApiSearchRepository(apiClient);
+  final tripSeriesRepository = ApiTripSeriesRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
@@ -94,7 +96,8 @@ Future<void> main() async {
         ChangeNotifierProvider(
             create: (_) => BookingProvider(bookingRepository, storageService)),
         ChangeNotifierProvider(
-            create: (_) => TripSeriesProvider(apiClient, storageService)),
+            create: (_) =>
+                TripSeriesProvider(tripSeriesRepository, storageService)),
 
         // Payment
         ChangeNotifierProvider(

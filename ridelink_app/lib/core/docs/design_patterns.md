@@ -11,6 +11,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 | `TripRepository` | `ApiTripRepository` | `TripProvider` |
 | `BookingRepository` | `ApiBookingRepository` | `BookingProvider` |
 | `SearchRepository` | `ApiSearchRepository` | `SearchProvider` |
+| `TripSeriesRepository` | `ApiTripSeriesRepository` | `TripSeriesProvider` |
 
 **Files:** `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`, `features/passenger/search/repositories/`
 
@@ -36,7 +37,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
-Repositories are created next to `ApiClient`, then passed into `TripProvider`, `BookingProvider`, and `SearchProvider`.
+Repositories are created next to `ApiClient`, then passed into `TripProvider`, `BookingProvider`, `SearchProvider`, and `TripSeriesProvider`.
 
 **File:** `main.dart`
 
