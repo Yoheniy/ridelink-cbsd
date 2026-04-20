@@ -18,6 +18,7 @@ import 'features/driver/trip/providers/trip_series_provider.dart';
 import 'features/driver/trip/repositories/trip_series_repository.dart';
 import 'features/emergency/providers/emergency_provider.dart';
 import 'features/feedback/providers/feedback_provider.dart';
+import 'features/feedback/repositories/feedback_repository.dart';
 import 'features/notifications/providers/notification_provider.dart';
 import 'features/passenger/booking/providers/booking_provider.dart';
 import 'features/passenger/booking/repositories/booking_repository.dart';
@@ -40,6 +41,7 @@ Future<void> main() async {
   final bookingRepository = ApiBookingRepository(apiClient);
   final searchRepository = ApiSearchRepository(apiClient);
   final tripSeriesRepository = ApiTripSeriesRepository(apiClient);
+  final feedbackRepository = ApiFeedbackRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
@@ -108,7 +110,8 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) => EmergencyProvider(convex, locationService),
         ),
-        ChangeNotifierProvider(create: (_) => FeedbackProvider(apiClient)),
+        ChangeNotifierProvider(
+            create: (_) => FeedbackProvider(feedbackRepository)),
       ],
       child: const RideLinkApp(),
     ),
