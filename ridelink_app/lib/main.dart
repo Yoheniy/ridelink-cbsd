@@ -103,7 +103,7 @@ Future<void> main() async {
 
         // Payment
         ChangeNotifierProvider(
-          create: (_) => PaymentProvider(chapaService, apiClient),
+          create: (_) => PaymentProvider(chapaService),
         ),
 
         // Emergency & feedback

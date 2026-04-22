@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/network/api_client.dart';
 import '../../../core/services/chapa_service.dart';
 
 class PaymentRecord {
@@ -48,7 +47,6 @@ class PaymentRecord {
 
 class PaymentProvider extends ChangeNotifier {
   final ChapaService _chapaService;
-  final ApiClient _apiClient;
 
   List<PaymentRecord> _payments = [];
   bool _loading = false;
@@ -95,7 +93,7 @@ class PaymentProvider extends ChangeNotifier {
     ),
   ];
 
-  PaymentProvider(this._chapaService, this._apiClient);
+  PaymentProvider(this._chapaService);
 
   /// No backend payment history endpoint exists yet; use mock data.
   Future<void> loadPaymentHistory() async {
