@@ -11,6 +11,7 @@ import 'core/services/locale_provider.dart';
 import 'core/services/location_service.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/repositories/auth_repository.dart';
 import 'features/chat/providers/chat_provider.dart';
 import 'features/driver/trip/providers/trip_provider.dart';
 import 'features/driver/trip/repositories/trip_repository.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
   final searchRepository = ApiSearchRepository(apiClient);
   final tripSeriesRepository = ApiTripSeriesRepository(apiClient);
   final feedbackRepository = ApiFeedbackRepository(apiClient);
+  final authRepository = ApiAuthRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
@@ -74,7 +76,7 @@ Future<void> main() async {
 
         // Auth
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(apiClient, storageService),
+          create: (_) => AuthProvider(authRepository, storageService),
         ),
 
         // Real-time providers

@@ -8,13 +8,14 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 | Interface | Implementation | Used by |
 |-----------|----------------|---------|
+| `AuthRepository` | `ApiAuthRepository` | `AuthProvider` |
 | `TripRepository` | `ApiTripRepository` | `TripProvider` |
 | `BookingRepository` | `ApiBookingRepository` | `BookingProvider` |
 | `SearchRepository` | `ApiSearchRepository` | `SearchProvider` |
 | `TripSeriesRepository` | `ApiTripSeriesRepository` | `TripSeriesProvider` |
 | `FeedbackRepository` | `ApiFeedbackRepository` | `FeedbackProvider` |
 
-**Files:** `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`, `features/passenger/search/repositories/`, `features/feedback/repositories/`
+**Files:** `features/auth/repositories/`, `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`, `features/passenger/search/repositories/`, `features/feedback/repositories/`
 
 `SearchProvider` still owns **geocoding** via `GebetaMapsService`; only the **GET /trips** query lives in `SearchRepository`.
 
@@ -38,7 +39,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
-Repositories are created next to `ApiClient`, then passed into `TripProvider`, `BookingProvider`, `SearchProvider`, `TripSeriesProvider`, and `FeedbackProvider`.
+Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `TripProvider`, `BookingProvider`, `SearchProvider`, `TripSeriesProvider`, and `FeedbackProvider`.
 
 **File:** `main.dart`
 

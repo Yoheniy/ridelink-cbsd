@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_endpoints.dart';
+
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/constants/enums.dart';
 import '../models/user_model.dart';
+import '../repositories/auth_repository.dart';
 
 enum AuthState { initial, loading, authenticated, unauthenticated, error }
 
 class AuthProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final AuthRepository _repository;
   final StorageService _storage;
 
   AuthState _state = AuthState.initial;
   UserModel? _user;
   String? _errorMessage;
 
-  AuthProvider(this._apiClient, this._storage);
+  AuthProvider(this._repository, this._storage);
 
   AuthState get state => _state;
   UserModel? get user => _user;
@@ -38,8 +38,7 @@ class AuthProvider extends ChangeNotifier {
       _state = AuthState.loading;
       notifyListeners();
 
-      final response = await _apiClient.get(ApiEndpoints.getSession);
-      final data = response.data as Map<String, dynamic>?;
+      final data = await _repository.getSession();
       if (data != null && data['user'] != null) {
         _user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
         await _persistUserIds(_user!);
@@ -65,12 +64,11 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      final response = await _apiClient.post(
-        ApiEndpoints.signIn,
-        data: {'email': email, 'password': password},
+      final data = await _repository.signInWithEmail(
+        email: email,
+        password: password,
       );
 
-      final data = response.data as Map<String, dynamic>;
       final sessionToken = data['session']?['token'] as String? ??
           data['token'] as String?;
 
@@ -118,20 +116,14 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      // Step 1: Sign up with Better Auth (includes additional fields)
-      final signUpResponse = await _apiClient.post(
-        ApiEndpoints.signUp,
-        data: {
-          'name': name,
-          'email': email,
-          'password': password,
-          'phone': phone,
-          'nationalId': nationalId ?? '',
-        },
-      );
+      final signUpData = await _repository.signUpWithEmail({
+        'name': name,
+        'email': email,
+        'password': password,
+        'phone': phone,
+        'nationalId': nationalId ?? '',
+      });
 
-      // Extract session token from sign-up response
-      final signUpData = signUpResponse.data as Map<String, dynamic>;
       final sessionToken = signUpData['session']?['token'] as String? ??
           signUpData['token'] as String?;
 
@@ -139,48 +131,38 @@ class AuthProvider extends ChangeNotifier {
         await _storage.saveAccessToken(sessionToken);
       }
 
-      // Step 2: Complete profile if additional info needed
       if (phone.isNotEmpty || (nationalId != null && nationalId.isNotEmpty)) {
         try {
-          await _apiClient.patch(
-            ApiEndpoints.completeProfile,
-            data: {
-              'phone': phone,
-              if (nationalId != null && nationalId.isNotEmpty)
-                'nationalId': nationalId,
-            },
-          );
+          await _repository.completeProfile({
+            'phone': phone,
+            if (nationalId != null && nationalId.isNotEmpty)
+              'nationalId': nationalId,
+          });
         } catch (e) {
           debugPrint('Complete profile step: $e');
         }
       }
 
-      // Step 3: If registering as driver, call become-driver
       if (role == UserRole.driver &&
           licenseNumber != null &&
           vehicleModel != null &&
           vehiclePlate != null &&
           vehicleSeats != null) {
         try {
-          await _apiClient.post(
-            ApiEndpoints.becomeDriver,
-            data: {
-              'licenseNumber': licenseNumber,
-              'vehicleModel': vehicleModel,
-              'vehiclePlate': vehiclePlate,
-              'vehicleSeats': vehicleSeats,
-            },
-          );
+          await _repository.becomeDriver({
+            'licenseNumber': licenseNumber,
+            'vehicleModel': vehicleModel,
+            'vehiclePlate': vehiclePlate,
+            'vehicleSeats': vehicleSeats,
+          });
         } catch (e) {
           debugPrint('Become driver step: $e');
         }
       }
 
-      // Fetch full user data
       if (sessionToken != null) {
         try {
-          final sessionResp = await _apiClient.get(ApiEndpoints.getSession);
-          final sessionData = sessionResp.data as Map<String, dynamic>?;
+          final sessionData = await _repository.getSession();
           if (sessionData?['user'] != null) {
             _user = UserModel.fromJson(
                 sessionData!['user'] as Map<String, dynamic>);
@@ -244,8 +226,7 @@ class AuthProvider extends ChangeNotifier {
   /// Fetch a JWT for Convex real-time auth.
   Future<String?> fetchConvexToken() async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.getToken);
-      final data = response.data;
+      final data = await _repository.getConvexToken();
       String? jwt;
       if (data is Map<String, dynamic>) {
         jwt = data['token'] as String?;
@@ -264,7 +245,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      await _apiClient.post(ApiEndpoints.signOut);
+      await _repository.signOut();
     } catch (_) {}
     await _storage.clearTokens();
     _user = null;
@@ -274,10 +255,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
-      await _apiClient.patch(ApiEndpoints.completeProfile, data: data);
-      // Re-fetch session to get updated user
-      final response = await _apiClient.get(ApiEndpoints.getSession);
-      final sessionData = response.data as Map<String, dynamic>?;
+      await _repository.completeProfile(data);
+      final sessionData = await _repository.getSession();
       if (sessionData?['user'] != null) {
         _user =
             UserModel.fromJson(sessionData!['user'] as Map<String, dynamic>);
