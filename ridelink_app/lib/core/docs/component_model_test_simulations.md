@@ -37,3 +37,31 @@ Replace `ApiTripRepository` with an in-memory fake returning fixed trip and book
 
 Replace `ApiBookingRepository` with a fake repository to validate booking request/cancel flows independently from network availability.
 
+## Simulation 4: Auth component (implemented)
+
+### Goal
+Prove that authentication state flow remains valid when the auth dependency is swapped from HTTP to in-memory data.
+
+### Setup
+- Interface: `AuthRepository`
+- Production implementation: `ApiAuthRepository`
+- Simulation implementation: `InMemoryAuthRepository`
+
+### Files
+- `lib/features/auth/repositories/auth_repository.dart`
+- `lib/features/auth/repositories/in_memory_auth_repository.dart`
+- `lib/features/auth/providers/auth_provider.dart`
+- `lib/main.dart`
+
+### Procedure
+1. Set `useInMemoryAuthSimulation = true` in `main.dart`.
+2. Launch app and call login/register flows through `AuthProvider`.
+3. Observe that:
+   - token persistence path is still executed
+   - auth states (`loading`, `authenticated`, `unauthenticated`) transition correctly
+   - profile completion and driver-upgrade steps execute against in-memory data
+   - no auth API call is required
+
+### Result
+`AuthProvider` behavior is preserved when the repository implementation is swapped. This confirms the auth component uses a stable required interface and supports exogenous composition in X-MAN terms.
+

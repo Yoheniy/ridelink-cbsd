@@ -27,5 +27,6 @@ Use this section in the **Component Model Practice** tab of your Google Doc. X-M
 - **Simulation A:** Replace `ApiTripRepository` with a fake that returns fixed `TripModel` lists; `TripProvider` should still update UI state without knowing HTTP.
 - **Simulation B:** Same for `BookingRepository` and passenger booking flows.
 - **Simulation C (implemented):** Search supports an `InMemorySearchRepository` that satisfies `SearchRepository`, demonstrating provider behavior is preserved without network I/O.
+- **Simulation D (implemented):** Auth supports an `InMemoryAuthRepository` that satisfies `AuthRepository`, demonstrating login/register state flow remains valid without backend auth endpoints.
 
 Documenting these swaps in your Google Doc satisfies “component model test simulations.”

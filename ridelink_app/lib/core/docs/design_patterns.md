@@ -8,7 +8,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 | Interface | Implementation | Used by |
 |-----------|----------------|---------|
-| `AuthRepository` | `ApiAuthRepository` | `AuthProvider` |
+| `AuthRepository` | `ApiAuthRepository`, `InMemoryAuthRepository` | `AuthProvider` |
 | `TripRepository` | `ApiTripRepository` | `TripProvider` |
 | `BookingRepository` | `ApiBookingRepository` | `BookingProvider` |
 | `SearchRepository` | `ApiSearchRepository` | `SearchProvider` |
@@ -40,6 +40,10 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
 Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `TripProvider`, `BookingProvider`, `SearchProvider`, `TripSeriesProvider`, and `FeedbackProvider`.
+
+For component-model simulations, the composition root can switch `AuthRepository`
+from `ApiAuthRepository` to `InMemoryAuthRepository` without changing
+`AuthProvider`.
 
 **File:** `main.dart`
 

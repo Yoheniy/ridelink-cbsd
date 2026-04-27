@@ -12,6 +12,7 @@ import 'core/services/location_service.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/repositories/auth_repository.dart';
+import 'features/auth/repositories/in_memory_auth_repository.dart';
 import 'features/chat/providers/chat_provider.dart';
 import 'features/driver/trip/providers/trip_provider.dart';
 import 'features/driver/trip/repositories/trip_repository.dart';
@@ -43,7 +44,11 @@ Future<void> main() async {
   final searchRepository = ApiSearchRepository(apiClient);
   final tripSeriesRepository = ApiTripSeriesRepository(apiClient);
   final feedbackRepository = ApiFeedbackRepository(apiClient);
-  final authRepository = ApiAuthRepository(apiClient);
+  final useInMemoryAuthSimulation =
+      const bool.fromEnvironment('USE_IN_MEMORY_AUTH_SIMULATION');
+  final authRepository = useInMemoryAuthSimulation
+      ? InMemoryAuthRepository()
+      : ApiAuthRepository(apiClient);
 
   ConvexClient? convex;
   final isConvexConfigured =
