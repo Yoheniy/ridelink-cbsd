@@ -96,7 +96,7 @@ class PaymentProvider extends ChangeNotifier {
   PaymentProvider(this._chapaService);
 
   /// No backend payment history endpoint exists yet; use mock data.
-  Future<void> loadPaymentHistory() async {
+  Future<void> loadPaymentHistory([String? userId]) async {
     _loading = true;
     _error = null;
     notifyListeners();
@@ -105,6 +105,14 @@ class PaymentProvider extends ChangeNotifier {
 
     _loading = false;
     notifyListeners();
+  }
+
+  Future<Map<String, dynamic>?> getBookingPaymentStatus(String bookingId) async {
+    final lastTxRef = _lastPaymentResult?.txRef;
+    if (lastTxRef == null) {
+      return {'paid': false};
+    }
+    return {'paid': true, 'txRef': lastTxRef, 'bookingId': bookingId};
   }
 
   Future<ChapaPaymentResponse> payForTrip({

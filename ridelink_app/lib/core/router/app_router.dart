@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:ridelink/core/constants/enums.dart';
+import 'package:ridelink/features/driver/trip/models/trip_model.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
+import '../../features/auth/screens/driver_setup_screen.dart';
 import '../../features/passenger/home/screens/passenger_home_screen.dart';
 import '../../features/driver/home/screens/driver_home_screen.dart';
+import '../../features/driver/home/screens/driver_active_screen.dart';
 import '../../features/passenger/search/screens/search_screen.dart';
 import '../../features/passenger/search/screens/search_results_screen.dart';
 import '../../features/passenger/search/screens/driver_detail_screen.dart';
+import '../../features/passenger/search/screens/trip_details_screen.dart';
 import '../../features/passenger/booking/screens/booking_confirm_screen.dart';
 import '../../features/passenger/booking/screens/active_booking_screen.dart';
 import '../../features/driver/trip/screens/create_trip_screen.dart';
@@ -28,16 +33,38 @@ import '../../features/profile/screens/settings_screen.dart';
 import '../../features/profile/screens/verification_screen.dart';
 import '../../features/driver/trip/screens/create_series_screen.dart';
 import '../../features/passenger/booking/screens/my_subscriptions_screen.dart';
+import '../../features/passenger/booking/screens/passenger_bookings_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/emergency/screens/sos_screen.dart';
 import '../../features/feedback/screens/rating_screen.dart';
 import '../../features/feedback/screens/report_screen.dart';
+import '../../features/admin/screens/admin_document_review_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
-
+  final demoActiveTrip = TripModel(
+    id: '1',
+    origin: 'Bole, Airport Main Gate Area',
+    destination: 'Kazanchis, Inter Luxury Hotel Hub',
+    routeCoordinates: const [
+      RouteCoordinate(lat: 9.0192, lng: 38.7525),
+      RouteCoordinate(lat: 9.0300, lng: 38.7800),
+    ],
+    driverName: 'Abebe Kebede',
+    driverRating: 4.8,
+    vehicleModel: 'Silver Toyota Corolla',
+    vehiclePlate: 'AA-3-45231',
+    vehicleSeats: 4,
+    bookedSeats: 1,
+    distanceKm: 11.2,
+    departureTime: DateTime.now(),
+    status: TripStatus.inProgress,
+    driverId: '1',
+    availableSeats: 4,
+    pricePerSeat: 100,
+  );
   static GoRouter router(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
@@ -48,6 +75,8 @@ class AppRouter {
         final isAuth = authProvider.isAuthenticated;
         final isAuthRoute = state.matchedLocation == '/login' ||
             state.matchedLocation == '/register' ||
+            state.matchedLocation == '/register/driver-setup' ||
+            state.matchedLocation == '/register/driver-documents' ||
             state.matchedLocation == '/onboarding' ||
             state.matchedLocation == '/splash';
 
@@ -71,6 +100,27 @@ class AppRouter {
           path: '/register',
           builder: (context, state) => const RegisterScreen(),
         ),
+        GoRoute(
+          path: '/register/driver-setup',
+          builder: (context, state) {
+            final extra = state.extra;
+            final licenseId = extra is Map
+                ? (extra['licenseDocumentId'] as String?)
+                : null;
+            if (licenseId == null || licenseId.isEmpty) {
+              // Missing required doc: go back to upload step.
+              return const DriverDocumentsScreen();
+            }
+            return DriverSetupScreen(licenseDocumentId: licenseId);
+          },
+        ),
+        GoRoute(
+          path: '/register/driver-documents',
+          builder: (context, state) {
+            final done = state.uri.queryParameters['done'] == '1';
+            return DriverDocumentsScreen(isAfterDriverSetup: done);
+          },
+        ),
 
         // Passenger shell
         ShellRoute(
@@ -86,8 +136,24 @@ class AppRouter {
               builder: (context, state) => const DriverHomeScreen(),
             ),
             GoRoute(
+              path: '/driver-active',
+              builder: (context, state) => DriverActiveScreen(),
+            ),
+            GoRoute(
               path: '/chat-list',
               builder: (context, state) => const ChatListScreen(),
+            ),
+            GoRoute(
+              path: '/chat',
+              builder: (context, state) => const ChatListScreen(),
+            ),
+            GoRoute(
+              path: '/passenger-bookings',
+              builder: (context, state) => const PassengerBookingsScreen(),
+            ),
+            GoRoute(
+              path: '/search',
+              builder: (context, state) => const SearchScreen(),
             ),
             GoRoute(
               path: '/notifications',
@@ -102,10 +168,6 @@ class AppRouter {
 
         // Full-screen routes
         GoRoute(
-          path: '/search',
-          builder: (context, state) => const SearchScreen(),
-        ),
-        GoRoute(
           path: '/search-results',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
@@ -118,6 +180,12 @@ class AppRouter {
         GoRoute(
           path: '/driver-detail/:tripId',
           builder: (context, state) => DriverDetailScreen(
+            tripId: state.pathParameters['tripId']!,
+          ),
+        ),
+        GoRoute(
+          path: '/passenger-trip-detail/:tripId',
+          builder: (context, state) => TripDetailsScreen(
             tripId: state.pathParameters['tripId']!,
           ),
         ),
@@ -214,6 +282,10 @@ class AppRouter {
           builder: (context, state) => ReportScreen(
             targetId: state.pathParameters['targetId']!,
           ),
+        ),
+        GoRoute(
+          path: '/admin/documents',
+          builder: (context, state) => const AdminDocumentReviewScreen(),
         ),
       ],
     );

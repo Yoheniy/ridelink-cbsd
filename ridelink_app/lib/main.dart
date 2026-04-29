@@ -15,7 +15,6 @@ import 'features/auth/repositories/auth_repository.dart';
 import 'features/auth/repositories/in_memory_auth_repository.dart';
 import 'features/chat/providers/chat_provider.dart';
 import 'features/driver/trip/providers/trip_provider.dart';
-import 'features/driver/trip/repositories/trip_repository.dart';
 import 'features/driver/trip/providers/trip_series_provider.dart';
 import 'features/driver/trip/repositories/trip_series_repository.dart';
 import 'features/emergency/providers/emergency_provider.dart';
@@ -23,9 +22,7 @@ import 'features/feedback/providers/feedback_provider.dart';
 import 'features/feedback/repositories/feedback_repository.dart';
 import 'features/notifications/providers/notification_provider.dart';
 import 'features/passenger/booking/providers/booking_provider.dart';
-import 'features/passenger/booking/repositories/booking_repository.dart';
 import 'features/passenger/search/providers/search_provider.dart';
-import 'features/passenger/search/repositories/search_repository.dart';
 import 'features/payment/providers/payment_provider.dart';
 import 'features/tracking/providers/tracking_provider.dart';
 
@@ -39,9 +36,6 @@ Future<void> main() async {
   final chapaService = ChapaService();
 
   // Repositories (Repository Pattern: decouple data access from state management)
-  final tripRepository = ApiTripRepository(apiClient);
-  final bookingRepository = ApiBookingRepository(apiClient);
-  final searchRepository = ApiSearchRepository(apiClient);
   final tripSeriesRepository = ApiTripSeriesRepository(apiClient);
   final feedbackRepository = ApiFeedbackRepository(apiClient);
   final useInMemoryAuthSimulation =
@@ -81,7 +75,8 @@ Future<void> main() async {
 
         // Auth
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(authRepository, storageService),
+          create: (_) =>
+              AuthProvider(authRepository, storageService, convex: convex),
         ),
 
         // Real-time providers
@@ -97,13 +92,12 @@ Future<void> main() async {
 
         // Trip & booking
         ChangeNotifierProvider(
-            create: (_) => TripProvider(tripRepository, storageService)),
+            create: (_) => TripProvider(apiClient, storageService)),
         ChangeNotifierProvider(
-          create: (_) =>
-              SearchProvider(searchRepository, gebetaMapsService),
+          create: (_) => SearchProvider(apiClient, gebetaMapsService),
         ),
         ChangeNotifierProvider(
-            create: (_) => BookingProvider(bookingRepository, storageService)),
+            create: (_) => BookingProvider(apiClient, storageService)),
         ChangeNotifierProvider(
             create: (_) =>
                 TripSeriesProvider(tripSeriesRepository, storageService)),

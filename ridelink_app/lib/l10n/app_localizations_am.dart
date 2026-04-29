@@ -90,6 +90,9 @@ class AppLocalizationsAm extends AppLocalizations {
   String get home => 'Home';
 
   @override
+  String get driverDashboardTitle => 'Driver dashboard';
+
+  @override
   String get trips => 'Trips';
 
   @override
@@ -203,6 +206,113 @@ class AppLocalizationsAm extends AppLocalizations {
   String get monthly => 'Monthly';
 
   @override
+  String get bookingFrequency => 'Booking frequency';
+
+  @override
+  String get oneTimeTrip => 'One time';
+
+  @override
+  String get numberOfSeats => 'Number of seats';
+
+  @override
+  String get noSeatsAvailable => 'No seats available on this trip';
+
+  @override
+  String get recurringBookingNote =>
+      'Recurring requests are subject to driver confirmation.';
+
+  @override
+  String get passengerHomeHi => 'Hi,';
+
+  @override
+  String get passengerHomeOnTheWay => 'On the way';
+
+  @override
+  String get passengerHomeActiveTrips => 'Your active trips';
+
+  @override
+  String get passengerHomeEnRouteHint =>
+      'En route · driver is heading to your pickup';
+
+  @override
+  String get passengerHomeOpenLiveView => 'Open live view';
+
+  @override
+  String get passengerDashboardTitle => 'Current Trip';
+
+  @override
+  String get passengerDashboardSosShort => 'SOS';
+
+  @override
+  String passengerDashboardMinutesAway(int minutes) {
+    return '$minutes min away';
+  }
+
+  @override
+  String get passengerDashboardTravelBanner => 'መልካም ጉዞ ይሁንልዎ።';
+
+  @override
+  String get passengerDashboardPickup => 'Pickup';
+
+  @override
+  String get passengerDashboardDropoff => 'Drop-off';
+
+  @override
+  String passengerDashboardEtaLabel(String time) {
+    return 'ETA $time';
+  }
+
+  @override
+  String passengerDashboardSeatsCount(int count) {
+    return '$count Seats';
+  }
+
+  @override
+  String get passengerDashboardAcOn => 'AC On';
+
+  @override
+  String get passengerDashboardIveArrived => 'I\'ve Arrived';
+
+  @override
+  String get passengerBookingsTitle => 'Bookings';
+
+  @override
+  String get bookingSectionAwaitingYou => 'Awaiting your confirmation';
+
+  @override
+  String get bookingSectionPendingDriver => 'Pending driver approval';
+
+  @override
+  String get bookingSectionActive => 'Active & upcoming';
+
+  @override
+  String get bookingKindAwaitingYou => 'Your action';
+
+  @override
+  String get bookingKindPendingDriver => 'Awaiting driver';
+
+  @override
+  String get bookingKindActive => 'Confirmed';
+
+  @override
+  String get recurrentTrip => 'Recurring';
+
+  @override
+  String get bookingEmptyAwaiting => 'Nothing waiting for your confirmation';
+
+  @override
+  String get bookingEmptyPending => 'No requests sent to drivers yet';
+
+  @override
+  String get bookingEmptyActive => 'No active trips';
+
+  @override
+  String get bookingAcceptedMessage => 'Booking confirmed. You\'re all set!';
+
+  @override
+  String get bookingCancelledMessage => 'Booking request cancelled.';
+
+  @override
   String get subscribe => 'Subscribe';
 
   @override
@@ -257,6 +367,12 @@ class AppLocalizationsAm extends AppLocalizations {
   String get km => 'km';
 
   @override
+  String get verifyIdentity => 'Verify identity';
+
+  @override
+  String get mySubscriptions => 'My subscriptions';
+
+  @override
   String get pendingVerification =>
       'Your account is pending verification. Please wait for admin approval.';
 
@@ -286,4 +402,144 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get preferredRoutes => 'Preferred Routes';
+
+  @override
+  String get emergencyAlertTitle => 'Emergency Alert';
+
+  @override
+  String get emergencyAlertSubtitle => 'What\'s the emergency?';
+
+  @override
+  String get emergencyTypeCarMalfunction => 'Car malfunction';
+
+  @override
+  String get emergencyTypeMedical => 'Medical emergency';
+
+  @override
+  String get emergencyTypeSuspicious => 'Suspicious activity';
+
+  @override
+  String get emergencyTypeAccident => 'Accident';
+
+  @override
+  String get emergencySendAlert => 'Send Emergency Alert';
+
+  @override
+  String get emergencySendFailed =>
+      'Could not send alert. Try again or call emergency services.';
+
+  @override
+  String get profileNamePhoneRequired => 'ሙሉ ስም እና ስልክ ቁጥር አስፈላጊ ናቸው';
+
+  @override
+  String get profileUpdatedSuccessfully => 'መገለጫው በተሳካ ሁኔታ ተዘምኗል';
+
+  @override
+  String get profileActivityAccountCreated => 'መለያ ተፈጥሯል';
+
+  @override
+  String get profileActivityDriverConfigured => 'የአሽከርካሪ መገለጫ ተዘጋጅቷል';
+
+  @override
+  String get profileActivityPassengerActive => 'የተሳፋሪ መገለጫ ንቁ ነው';
+
+  @override
+  String get profileActivityVehicleDetails => 'የተሽከርካሪ ዝርዝሮች አሉ';
+
+  @override
+  String get profileActivityReadyToBook => 'ጉዞ ለማስያዝ ዝግጁ';
+
+  @override
+  String get profileActivityIdentityVerification => 'የመታወቂያ ማረጋገጫ';
+
+  @override
+  String get profileStatusGoodStanding => 'በመልካም ሁኔታ ላይ ነው';
+
+  @override
+  String get profileStatusPendingVerificationDetails =>
+      'የማረጋገጫ ዝርዝሮች በመጠባበቅ ላይ ናቸው';
+
+  @override
+  String get profileActivityManageAlerts => 'ማስጠንቀቂያዎችን ከመለያ ሜኑ ያስተዳድሩ';
+
+  @override
+  String get profilePersonalDetailsTitle => 'የግል መረጃ';
+
+  @override
+  String get profilePersonalDetailsSubtitle =>
+      'ለጉዞ ማስያዣ እና ለደህንነት የሚጠቅሙ የመለያ መረጃዎች።';
+
+  @override
+  String get profileDriverDetailsTitle => 'የአሽከርካሪ ዝርዝሮች';
+
+  @override
+  String get profileDriverDetailsSubtitle =>
+      'ተሳፋሪዎች ጉዞ ሲያስይዙ የሚያዩት የተሽከርካሪ መረጃ።';
+
+  @override
+  String get profileQuickActionsTitle => 'ፈጣን እርምጃዎች';
+
+  @override
+  String get profileQuickActionsSubtitle =>
+      'ብዙ ጊዜ የሚጠቀሙት የመለያ እርምጃዎች እና ምርጫዎች።';
+
+  @override
+  String get profileRecentActivityTitle => 'የቅርብ እንቅስቃሴ';
+
+  @override
+  String get profileRecentActivitySubtitle => 'የቅርብ ጊዜ የመለያ ክንውኖች ፈጣን እይታ።';
+
+  @override
+  String get profileNoActivityTitle => 'እስካሁን እንቅስቃሴ የለም';
+
+  @override
+  String get profileNoActivityMessage =>
+      'ጉዞ ካስያዙ ወይም መገለጫዎን ካዘመኑ በኋላ ዝማኔዎች እዚህ ይታያሉ።';
+
+  @override
+  String get profileCompletionLabel => 'የመገለጫ ሙሉነት';
+
+  @override
+  String get profileRoleLabel => 'ሚና';
+
+  @override
+  String get profileStatusLabel => 'ሁኔታ';
+
+  @override
+  String get profileStatusActive => 'ንቁ';
+
+  @override
+  String get profileStatusPending => 'በመጠባበቅ ላይ';
+
+  @override
+  String get profileNotProvided => 'አልተሰጠም';
+
+  @override
+  String get profileEditSubtitle => 'የግል ዝርዝሮችዎን እና የጉዞ መለያ መረጃዎን ያዘምኑ።';
+
+  @override
+  String get profilePhotoUploadPreview => 'የፎቶ መጫኛ ቅድመ እይታ';
+
+  @override
+  String get profilePhotoSyncingNote => 'የፎቶ ማስማማት በሚቀጥለው የAPI ዝማኔ ውስጥ ይገባል።';
+
+  @override
+  String get profileBasicInformationTitle => 'መሰረታዊ መረጃ';
+
+  @override
+  String get profileBasicInformationSubtitle =>
+      'ይህ መረጃ ለተሳፋሪዎች እና ለአስተዳዳሪዎች ይታያል።';
+
+  @override
+  String get profileVehicleInformationTitle => 'የተሽከርካሪ መረጃ';
+
+  @override
+  String get profileVehicleInformationSubtitle =>
+      'ተሳፋሪዎች እንዲተማመኑ እነዚህን ዝርዝሮች ወቅታዊ ያድርጉ።';
+
+  @override
+  String get profileSaving => 'በማስቀመጥ ላይ...';
+
+  @override
+  String get profileUserLabel => 'ተጠቃሚ';
 }

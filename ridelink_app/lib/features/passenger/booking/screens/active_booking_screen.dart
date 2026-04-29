@@ -3,10 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:ridelink/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import '../../../emergency/widgets/emergency_alert_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/constants/enums.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../chat/providers/chat_provider.dart';
 import '../providers/booking_provider.dart';
 
 class ActiveBookingScreen extends StatefulWidget {
@@ -88,6 +91,27 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
     );
   }
 
+  Future<void> _openChatForBooking(BookingModel booking) async {
+    final auth = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    await auth.syncConvexAuth();
+    final userId = auth.user?.id;
+    if (userId != null && userId.isNotEmpty) {
+      chatProvider.setUserId(userId);
+    }
+    final conversationId = await chatProvider.getConversationIdByBooking(booking.id);
+    if (!mounted) return;
+    if (conversationId != null && conversationId.isNotEmpty) {
+      context.push('/chat/$conversationId');
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Chat will be available once the request is accepted.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -125,8 +149,6 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
     final origin = booking.tripOrigin ?? '—';
     final destination = booking.tripDestination ?? '—';
     final pickupPoint = booking.pickUpPoint ?? origin;
-    final conversationId = 'trip_${booking.tripId}';
-
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.myTrips),
@@ -226,14 +248,15 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
             AppButton(
               text: l10n.chat,
               icon: Icons.chat_bubble_outline,
-              onPressed: () => context.push('/chat/$conversationId'),
+              onPressed: () => _openChatForBooking(booking),
               isOutlined: true,
             ),
             const SizedBox(height: 12),
             AppButton(
               text: l10n.sos,
               icon: Icons.emergency,
-              onPressed: () => context.push('/sos/${widget.tripId}'),
+              onPressed: () =>
+                  showEmergencyAlertFlow(context, widget.tripId),
               backgroundColor: AppColors.sosRed,
             ),
             const SizedBox(height: 12),

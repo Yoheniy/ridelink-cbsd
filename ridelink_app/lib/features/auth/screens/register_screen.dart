@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ridelink/l10n/app_localizations.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -22,9 +23,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _vehicleModelController = TextEditingController();
-  final _vehiclePlateController = TextEditingController();
-  final _vehicleSeatsController = TextEditingController();
   bool _obscurePassword = true;
   UserRole _selectedRole = UserRole.passenger;
   int _currentStep = 0;
@@ -35,9 +33,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _vehicleModelController.dispose();
-    _vehiclePlateController.dispose();
-    _vehicleSeatsController.dispose();
     super.dispose();
   }
 
@@ -51,21 +46,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password: _passwordController.text,
       phone: _phoneController.text.trim(),
       role: _selectedRole,
-      vehicleModel: _selectedRole == UserRole.driver ? _vehicleModelController.text.trim() : null,
-      vehiclePlate: _selectedRole == UserRole.driver ? _vehiclePlateController.text.trim() : null,
-      vehicleSeats: _selectedRole == UserRole.driver ? int.tryParse(_vehicleSeatsController.text) : null,
     );
 
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful! Please log in.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      context.go('/login');
+      if (_selectedRole == UserRole.driver) {
+        context.go('/register/driver-documents');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please log in.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.go('/login');
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -86,175 +82,158 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'),
+          onPressed: isLoading ? null : () => context.go('/login'),
         ),
         title: Text(l10n.register),
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: Theme.of(context).colorScheme.copyWith(
-                    primary: AppColors.primary,
-                  ),
-            ),
-            child: Stepper(
-              currentStep: _currentStep,
-              onStepContinue: () {
-                if (_currentStep == 0) {
-                  setState(() => _currentStep = 1);
-                } else if (_currentStep == 1) {
-                  if (_selectedRole == UserRole.driver) {
-                    setState(() => _currentStep = 2);
-                  } else {
-                    _handleRegister();
-                  }
-                } else {
-                  _handleRegister();
-                }
-              },
-              onStepCancel: () {
-                if (_currentStep > 0) {
-                  setState(() => _currentStep -= 1);
-                }
-              },
-              controlsBuilder: (context, details) {
-                final isLastStep = (_selectedRole == UserRole.passenger && _currentStep == 1)
-                    || _currentStep == 2;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          text: isLastStep ? l10n.submit : l10n.next,
-                          onPressed: details.onStepContinue,
-                          isLoading: isLoading,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: AbsorbPointer(
+              absorbing: isLoading,
+              child: Form(
+                key: _formKey,
+                child: Theme(
+                  data: Theme.of(context),
+                  child: Stepper(
+                    currentStep: _currentStep,
+                    onStepContinue: () {
+                      if (_currentStep == 0) {
+                        setState(() => _currentStep = 1);
+                      } else {
+                        _handleRegister();
+                      }
+                    },
+                    onStepCancel: () {
+                      if (_currentStep > 0) {
+                        setState(() => _currentStep -= 1);
+                      }
+                    },
+                    controlsBuilder: (context, details) {
+                      final isLastStep = _currentStep == 1;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: AppButton(
+                                text: isLastStep ? l10n.submit : l10n.next,
+                                onPressed: details.onStepContinue,
+                                isLoading: false,
+                              ),
+                            ),
+                            if (_currentStep > 0) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: AppButton(
+                                  text: 'Back',
+                                  onPressed: isLoading
+                                      ? null
+                                      : details.onStepCancel,
+                                  isOutlined: true,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                    // Stepper requires a fixed steps.length across rebuilds.
+                    steps: [
+                      Step(
+                        title: Text(l10n.selectRole),
+                        isActive: _currentStep >= 0,
+                        content: Column(
+                          children: [
+                            _RoleCard(
+                              icon: Icons.person,
+                              title: l10n.passenger,
+                              description:
+                                  'Find affordable rides for your daily commute',
+                              isSelected: _selectedRole == UserRole.passenger,
+                              onTap: () => setState(() {
+                                _selectedRole = UserRole.passenger;
+                              }),
+                            ),
+                            const SizedBox(height: 12),
+                            _RoleCard(
+                              icon: Icons.directions_car,
+                              title: l10n.driver,
+                              description:
+                                  'Share your ride and offset travel costs',
+                              isSelected: _selectedRole == UserRole.driver,
+                              onTap: () => setState(
+                                () => _selectedRole = UserRole.driver,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (_currentStep > 0) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AppButton(
-                            text: 'Back',
-                            onPressed: details.onStepCancel,
-                            isOutlined: true,
-                          ),
+                      Step(
+                        title: const Text('Personal Information'),
+                        isActive: _currentStep >= 1,
+                        content: Column(
+                          children: [
+                            AppTextField(
+                              controller: _nameController,
+                              hintText: l10n.fullName,
+                              prefixIcon: Icons.person_outline,
+                              validator: (v) => Validators.required(v, 'Name'),
+                            ),
+                            const SizedBox(height: 16),
+                            AppTextField(
+                              controller: _emailController,
+                              hintText: l10n.email,
+                              prefixIcon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: Validators.email,
+                            ),
+                            const SizedBox(height: 16),
+                            AppTextField(
+                              controller: _phoneController,
+                              hintText: l10n.phoneNumber,
+                              prefixIcon: Icons.phone_outlined,
+                              keyboardType: TextInputType.phone,
+                              validator: Validators.phoneNumber,
+                            ),
+                            const SizedBox(height: 16),
+                            AppTextField(
+                              controller: _passwordController,
+                              hintText: l10n.password,
+                              prefixIcon: Icons.lock_outline,
+                              obscureText: _obscurePassword,
+                              validator: Validators.password,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: AppColors.textHintLight,
+                                ),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-              steps: [
-                Step(
-                  title: Text(l10n.selectRole),
-                  isActive: _currentStep >= 0,
-                  content: Column(
-                    children: [
-                      _RoleCard(
-                        icon: Icons.person,
-                        title: l10n.passenger,
-                        description: 'Find affordable rides for your daily commute',
-                        isSelected: _selectedRole == UserRole.passenger,
-                        onTap: () => setState(() {
-                          _selectedRole = UserRole.passenger;
-                          if (_currentStep > 1) _currentStep = 1;
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      _RoleCard(
-                        icon: Icons.directions_car,
-                        title: l10n.driver,
-                        description: 'Share your ride and offset travel costs',
-                        isSelected: _selectedRole == UserRole.driver,
-                        onTap: () => setState(() => _selectedRole = UserRole.driver),
                       ),
                     ],
                   ),
                 ),
-                Step(
-                  title: const Text('Personal Information'),
-                  isActive: _currentStep >= 1,
-                  content: Column(
-                    children: [
-                      AppTextField(
-                        controller: _nameController,
-                        hintText: l10n.fullName,
-                        prefixIcon: Icons.person_outline,
-                        validator: (v) => Validators.required(v, 'Name'),
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        controller: _emailController,
-                        hintText: l10n.email,
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: Validators.email,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        controller: _phoneController,
-                        hintText: l10n.phoneNumber,
-                        prefixIcon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                        validator: Validators.phoneNumber,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        controller: _passwordController,
-                        hintText: l10n.password,
-                        prefixIcon: Icons.lock_outline,
-                        obscureText: _obscurePassword,
-                        validator: Validators.password,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: AppColors.textHintLight,
-                          ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Step(
-                  title: const Text('Vehicle Information'),
-                  isActive: _currentStep >= 2,
-                  state: _selectedRole == UserRole.driver
-                      ? StepState.indexed
-                      : StepState.disabled,
-                  content: Column(
-                    children: [
-                      AppTextField(
-                        controller: _vehicleModelController,
-                        hintText: l10n.vehicleModel,
-                        prefixIcon: Icons.directions_car_outlined,
-                        validator: (v) => Validators.required(v, 'Vehicle model'),
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        controller: _vehiclePlateController,
-                        hintText: l10n.vehiclePlate,
-                        prefixIcon: Icons.confirmation_number_outlined,
-                        validator: Validators.vehiclePlate,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        controller: _vehicleSeatsController,
-                        hintText: l10n.vehicleSeats,
-                        prefixIcon: Icons.event_seat_outlined,
-                        keyboardType: TextInputType.number,
-                        validator: Validators.seats,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (isLoading)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Theme.of(
+                  context,
+                ).colorScheme.scrim.withValues(alpha: 0.45),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -284,13 +263,17 @@ class _RoleCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.06)
-              : Theme.of(context).cardColor,
+              ? Theme.of(context).colorScheme.surfaceBright
+              : Theme.of(context).colorScheme.surface.withAlpha(125),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.lightDivider,
-            width: isSelected ? 2 : 1,
-          ),
+          boxShadow: isSelected
+              ?[ BoxShadow(
+                color: Theme.of(context).colorScheme.primary,
+                blurRadius: 5,
+                spreadRadius: 2,
+                offset: const Offset(0, 4),
+              )]
+              : AppShadows.softCard(context),
         ),
         child: Row(
           children: [
@@ -299,13 +282,15 @@ class _RoleCard extends StatelessWidget {
               height: 52,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : AppColors.lightBackground,
+                    ? AppColors.primary.withValues(alpha: 0.5)
+                    : Theme.of(context).colorScheme.surface.withAlpha(125),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                color: isSelected ? AppColors.primary : AppColors.textHintLight,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 26,
               ),
             ),
@@ -324,14 +309,18 @@ class _RoleCard extends StatelessWidget {
                   Text(
                     description,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondaryLight,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.primary,
+                size: 24,
+              ),
           ],
         ),
       ),

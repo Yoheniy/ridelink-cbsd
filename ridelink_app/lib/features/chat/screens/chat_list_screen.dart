@@ -3,6 +3,7 @@ import 'package:ridelink/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/shell_drawer_scope.dart';
 import '../../../core/widgets/app_card.dart';
 import '../providers/chat_provider.dart';
 
@@ -17,8 +18,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadConversations();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final chatProvider = context.read<ChatProvider>();
+      await chatProvider.loadConversations();
     });
   }
 
@@ -30,11 +32,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const ShellMenuButton(),
         title: Text(l10n.chat),
       ),
       body: chatProvider.loadingConversations
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
+          : chatProvider.error != null && conversations.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      chatProvider.error!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondaryLight,
+                          ),
+                    ),
+                  ),
+                )
           : conversations.isEmpty
               ? Center(
                   child: Column(
@@ -74,7 +90,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   itemCount: conversations.length,
                   itemBuilder: (context, index) {
                     final conv = conversations[index];
-                    final hasUnread = index == 0;
+                    final hasUnread = conv.unreadCount > 0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: AppCard(
@@ -140,15 +156,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      if (hasUnread)
+                                      if (hasUnread) ...[
                                         Container(
-                                          width: 10,
-                                          height: 10,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 7, vertical: 2),
                                           decoration: const BoxDecoration(
                                             color: AppColors.primary,
-                                            shape: BoxShape.circle,
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(999),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            conv.unreadCount > 99
+                                                ? '99+'
+                                                : conv.unreadCount.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ),
+                                      ],
                                     ],
                                   ),
                                 ],

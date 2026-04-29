@@ -34,6 +34,14 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> getMe() async {
+    if (_user == null) {
+      return null;
+    }
+    return {'user': _user};
+  }
+
+  @override
   Future<Map<String, dynamic>> signInWithEmail({
     required String email,
     required String password,
@@ -82,6 +90,22 @@ class InMemoryAuthRepository implements AuthRepository {
       ...data,
     };
   }
+
+  @override
+  Future<void> requestSignInOtp(String email) async {}
+
+  @override
+  Future<void> verifyEmailOtp({required String email, required String otp}) async {}
+
+  @override
+  Future<void> requestPasswordResetOtp(String email) async {}
+
+  @override
+  Future<void> resetPasswordWithOtp({
+    required String email,
+    required String otp,
+    required String password,
+  }) async {}
 
   @override
   Future<void> becomeDriver(Map<String, dynamic> data) async {

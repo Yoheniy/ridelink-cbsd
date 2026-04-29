@@ -90,6 +90,9 @@ class AppLocalizationsOm extends AppLocalizations {
   String get home => 'Mana';
 
   @override
+  String get driverDashboardTitle => 'Driver dashboard';
+
+  @override
   String get trips => 'Imala';
 
   @override
@@ -203,6 +206,114 @@ class AppLocalizationsOm extends AppLocalizations {
   String get monthly => 'Ji\'aan';
 
   @override
+  String get bookingFrequency => 'Sadarkaa teessoo';
+
+  @override
+  String get oneTimeTrip => 'Yeroo tokko';
+
+  @override
+  String get numberOfSeats => 'Lakkoofsa teessoo';
+
+  @override
+  String get noSeatsAvailable => 'Imala kana irratti teessi hin jiru';
+
+  @override
+  String get recurringBookingNote =>
+      'Gaaffiin yeroo irraa gara yerootti mirkanaa\'ina konkolaachisaa irratti hunda\'ame.';
+
+  @override
+  String get passengerHomeHi => 'Akkam,';
+
+  @override
+  String get passengerHomeOnTheWay => 'Karaa irratti';
+
+  @override
+  String get passengerHomeActiveTrips => 'Imala hojii irratti kee';
+
+  @override
+  String get passengerHomeEnRouteHint =>
+      'Imala irratti · konkolaachisni fudhata kee irratti deemaa jira';
+
+  @override
+  String get passengerHomeOpenLiveView => 'Mul\'isa kallattii banaa';
+
+  @override
+  String get passengerDashboardTitle => 'Imala ammaa';
+
+  @override
+  String get passengerDashboardSosShort => 'SOS';
+
+  @override
+  String passengerDashboardMinutesAway(int minutes) {
+    return 'Daqiiqaa $minutes booda';
+  }
+
+  @override
+  String get passengerDashboardTravelBanner => 'Imala gaarii taasisaa!';
+
+  @override
+  String get passengerDashboardPickup => 'Fudhachuu';
+
+  @override
+  String get passengerDashboardDropoff => 'Gadi bu\'uu';
+
+  @override
+  String passengerDashboardEtaLabel(String time) {
+    return 'Yeroo eegamaa $time';
+  }
+
+  @override
+  String passengerDashboardSeatsCount(int count) {
+    return 'Teessoo $count';
+  }
+
+  @override
+  String get passengerDashboardAcOn => 'AC mallattee';
+
+  @override
+  String get passengerDashboardIveArrived => 'Dhufe';
+
+  @override
+  String get passengerBookingsTitle => 'Teessoo';
+
+  @override
+  String get bookingSectionAwaitingYou => 'Mirkanaa\'ina kee eegaa jira';
+
+  @override
+  String get bookingSectionPendingDriver =>
+      'Mirkanaa\'ina konkolaachisaa eegaa jira';
+
+  @override
+  String get bookingSectionActive => 'Hojii irratti fi kan dhufu';
+
+  @override
+  String get bookingKindAwaitingYou => 'Gocha kee';
+
+  @override
+  String get bookingKindPendingDriver => 'Konkolaachisaa eegaa';
+
+  @override
+  String get bookingKindActive => 'Mirkanaa\'e';
+
+  @override
+  String get recurrentTrip => 'Deebi\'aa';
+
+  @override
+  String get bookingEmptyAwaiting => 'Mirkanaa\'ina kee eegu waan hin jirre';
+
+  @override
+  String get bookingEmptyPending => 'Konkolaachisaatti gaaffiin hin ergamne';
+
+  @override
+  String get bookingEmptyActive => 'Imalli hojii irratti hin jiru';
+
+  @override
+  String get bookingAcceptedMessage => 'Teessoon mirkanaa\'e. Tole!';
+
+  @override
+  String get bookingCancelledMessage => 'Gaaffiin teessoo haqameera.';
+
+  @override
   String get subscribe => 'Miseensa ta\'i';
 
   @override
@@ -257,6 +368,12 @@ class AppLocalizationsOm extends AppLocalizations {
   String get km => 'km';
 
   @override
+  String get verifyIdentity => 'Mallattoo mirkaneessi';
+
+  @override
+  String get mySubscriptions => 'Miseensota koo';
+
+  @override
   String get pendingVerification =>
       'Herregni kee mirkanaa\'aa jira. Maaloo hayyama bulchiinsaa eegi.';
 
@@ -286,4 +403,151 @@ class AppLocalizationsOm extends AppLocalizations {
 
   @override
   String get preferredRoutes => 'Daandii filatame';
+
+  @override
+  String get emergencyAlertTitle => 'Akeekkachiisa balaa';
+
+  @override
+  String get emergencyAlertSubtitle => 'Balaa maal?';
+
+  @override
+  String get emergencyTypeCarMalfunction => 'Konkolataa dogoggora';
+
+  @override
+  String get emergencyTypeMedical => 'Balaa fayyaa';
+
+  @override
+  String get emergencyTypeSuspicious => 'Sochii shakkii qabu';
+
+  @override
+  String get emergencyTypeAccident => 'Balaa konkolaachisummaa';
+
+  @override
+  String get emergencySendAlert => 'Akeekkachiisa balaa ergi';
+
+  @override
+  String get emergencySendFailed =>
+      'Erguu hin dandeenye. Irra deebi\'ii yookiin tajaajila balaa bilbilaa.';
+
+  @override
+  String get profileNamePhoneRequired =>
+      'Maqaa fi lakkoofsa bilbilaa guutuun dirqama';
+
+  @override
+  String get profileUpdatedSuccessfully =>
+      'Seenaa fayyadamaa milkaa\'inaan haaromfameera';
+
+  @override
+  String get profileActivityAccountCreated => 'Herregni uumameera';
+
+  @override
+  String get profileActivityDriverConfigured =>
+      'Seenaa konkolaachisaa qindaa\'eera';
+
+  @override
+  String get profileActivityPassengerActive => 'Seenaa imaltuu hojii irra jira';
+
+  @override
+  String get profileActivityVehicleDetails => 'Odeeffannoon konkolaataa jira';
+
+  @override
+  String get profileActivityReadyToBook => 'Imala qabachuuf qophaa\'eera';
+
+  @override
+  String get profileActivityIdentityVerification => 'Mirkaneessa eenyummaa';
+
+  @override
+  String get profileStatusGoodStanding => 'Haala gaarii keessa jira';
+
+  @override
+  String get profileStatusPendingVerificationDetails =>
+      'Bal\'inaan mirkaneessaa eegaa jira';
+
+  @override
+  String get profileActivityManageAlerts =>
+      'Akeekkachiisota menu herregaa keetii keessaa bulchi';
+
+  @override
+  String get profilePersonalDetailsTitle => 'Odeeffannoo dhuunfaa';
+
+  @override
+  String get profilePersonalDetailsSubtitle =>
+      'Odeeffannoo herregaa kee, kan qabduu teessoo fi nageenyaaf fayyadamu.';
+
+  @override
+  String get profileDriverDetailsTitle => 'Odeeffannoo konkolaachisaa';
+
+  @override
+  String get profileDriverDetailsSubtitle =>
+      'Odeeffannoo konkolaataa yeroo imaltoonni qabatan mul\'atu.';
+
+  @override
+  String get profileQuickActionsTitle => 'Gochoota saffisaa';
+
+  @override
+  String get profileQuickActionsSubtitle =>
+      'Gochootaa fi filannoowwan herregaa yeroo baayyee itti fayyadamtu.';
+
+  @override
+  String get profileRecentActivityTitle => 'Sochii dhihoo';
+
+  @override
+  String get profileRecentActivitySubtitle =>
+      'Sochii herregaa kee dhihoo irratti mul\'ata gabaabaa.';
+
+  @override
+  String get profileNoActivityTitle => 'Ammaaf sochiin hin jiru';
+
+  @override
+  String get profileNoActivityMessage =>
+      'Yeroo imala qabattu ykn seenaa kee haaromsitu, haaromsi asitti mul\'ata.';
+
+  @override
+  String get profileCompletionLabel => 'Guutinsa piroofaayilii';
+
+  @override
+  String get profileRoleLabel => 'Gahee';
+
+  @override
+  String get profileStatusLabel => 'Haala';
+
+  @override
+  String get profileStatusActive => 'Hojii irra';
+
+  @override
+  String get profileStatusPending => 'Eegaa jira';
+
+  @override
+  String get profileNotProvided => 'Hin kennamne';
+
+  @override
+  String get profileEditSubtitle =>
+      'Odeeffannoo dhuunfaa fi eenyummaa imalaa kee haaromsi.';
+
+  @override
+  String get profilePhotoUploadPreview => 'Durargii olkaa\'insa suuraa';
+
+  @override
+  String get profilePhotoSyncingNote =>
+      'Walqindaa\'inni suuraa haaromsa API itti aanu keessatti ni dabalama.';
+
+  @override
+  String get profileBasicInformationTitle => 'Odeeffannoo bu\'uuraa';
+
+  @override
+  String get profileBasicInformationSubtitle =>
+      'Odeeffannoon kun imaltootaa fi bulchitootatti ni mul\'ata.';
+
+  @override
+  String get profileVehicleInformationTitle => 'Odeeffannoo konkolaataa';
+
+  @override
+  String get profileVehicleInformationSubtitle =>
+      'Imaltoonni akka amananiif odeeffannoo kana yeroo yeroon haaromsi.';
+
+  @override
+  String get profileSaving => 'Olkaa\'aa jira...';
+
+  @override
+  String get profileUserLabel => 'Fayyadamaa';
 }

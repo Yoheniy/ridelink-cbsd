@@ -1,14 +1,15 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/network/api_exceptions.dart';
 import '../../../../core/services/storage_service.dart';
 import '../models/booking_model.dart';
-import '../repositories/booking_repository.dart';
 
 export '../models/booking_model.dart';
 
-/// Manages booking-related UI state; delegates persistence to [BookingRepository].
 class BookingProvider extends ChangeNotifier {
-  final BookingRepository _repository;
+  final ApiClient _apiClient;
   final StorageService _storage;
 
   List<BookingModel> _bookings = [];
@@ -21,7 +22,21 @@ class BookingProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
-  BookingProvider(this._repository, this._storage);
+  BookingProvider(this._apiClient, this._storage);
+
+  List<dynamic> _extractList(dynamic data, {List<String> keys = const []}) {
+    if (data is List) return data;
+    if (data is Map<String, dynamic>) {
+      for (final key in keys) {
+        final value = data[key];
+        if (value is List) return value;
+      }
+      for (final value in data.values) {
+        if (value is List) return value;
+      }
+    }
+    return const [];
+  }
 
   Future<void> loadBookings() async {
     _loading = true;
@@ -37,7 +52,14 @@ class BookingProvider extends ChangeNotifier {
         return;
       }
 
-      _bookings = await _repository.getPassengerBookings(passengerId);
+      final response = await _apiClient.get(ApiEndpoints.passengerBookings(passengerId));
+      final list =
+          _extractList(response.data, keys: const ['bookings', 'items']);
+      if (list.isNotEmpty) {
+        _bookings = list
+            .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
     } catch (e) {
       debugPrint('Failed to load bookings: $e');
       _error = 'Failed to load bookings';
@@ -49,31 +71,48 @@ class BookingProvider extends ChangeNotifier {
 
   Future<bool> requestBooking({
     required String tripId,
-    required String passengerId,
+    String? passengerId,
     int seatsBooked = 1,
     required double totalPrice,
     String? pickUpPoint,
     String? dropOffPoint,
+    /// `one_time` | `weekly` | `monthly` — sent to API when supported.
+    String recurrence = 'one_time',
   }) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _activeBooking = await _repository.requestBooking(
-        tripId: tripId,
-        passengerId: passengerId,
-        seatsBooked: seatsBooked,
-        totalPrice: totalPrice,
-        pickUpPoint: pickUpPoint,
-        dropOffPoint: dropOffPoint,
+      final resolvedPassengerId = passengerId ?? await _storage.getPassengerId();
+      if (resolvedPassengerId == null || resolvedPassengerId.isEmpty) {
+        _error = 'Passenger profile not found';
+        _loading = false;
+        notifyListeners();
+        return false;
+      }
+      final response = await _apiClient.post(
+        ApiEndpoints.createBooking,
+        data: {
+          'tripId': tripId,
+          'passengerId': resolvedPassengerId,
+          'seatsBooked': seatsBooked,
+          'totalPrice': totalPrice,
+          'recurrence': recurrence,
+          if (pickUpPoint != null) 'pickUpPoint': pickUpPoint,
+          if (dropOffPoint != null) 'dropOffPoint': dropOffPoint,
+        },
       );
+      final data = response.data as Map<String, dynamic>?;
+      if (data != null) {
+        _activeBooking = BookingModel.fromJson(data);
+      }
       _loading = false;
       notifyListeners();
       return true;
-    } catch (e) {
+    } on ApiException catch (e) {
       debugPrint('Failed to request booking: $e');
-      _error = 'Failed to request booking';
+      _error = e.message;
       _loading = false;
       notifyListeners();
       return false;
@@ -82,9 +121,14 @@ class BookingProvider extends ChangeNotifier {
 
   Future<BookingModel?> getBookingById(String bookingId) async {
     try {
-      _activeBooking = await _repository.getBookingById(bookingId);
-      notifyListeners();
-      return _activeBooking;
+      final response =
+          await _apiClient.get(ApiEndpoints.bookingById(bookingId));
+      final data = response.data as Map<String, dynamic>?;
+      if (data != null) {
+        _activeBooking = BookingModel.fromJson(data);
+        notifyListeners();
+        return _activeBooking;
+      }
     } catch (e) {
       debugPrint('Failed to load booking: $e');
     }
@@ -93,13 +137,11 @@ class BookingProvider extends ChangeNotifier {
 
   Future<bool> cancelBooking(String bookingId) async {
     try {
-      final success = await _repository.cancelBooking(bookingId);
-      if (success) {
-        _bookings.removeWhere((b) => b.id == bookingId);
-        if (_activeBooking?.id == bookingId) _activeBooking = null;
-        notifyListeners();
-      }
-      return success;
+      await _apiClient.patch(ApiEndpoints.cancelBooking(bookingId));
+      _bookings.removeWhere((b) => b.id == bookingId);
+      if (_activeBooking?.id == bookingId) _activeBooking = null;
+      notifyListeners();
+      return true;
     } catch (e) {
       debugPrint('Failed to cancel booking: $e');
       return false;
