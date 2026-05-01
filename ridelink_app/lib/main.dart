@@ -25,6 +25,7 @@ import 'features/passenger/booking/providers/booking_provider.dart';
 import 'features/passenger/search/providers/search_provider.dart';
 import 'features/payment/providers/payment_provider.dart';
 import 'features/payment/providers/payout_provider.dart';
+import 'features/payment/repositories/payout_repository.dart';
 import 'features/preferences/providers/user_preference_provider.dart';
 import 'features/preferences/repositories/user_preference_repository.dart';
 import 'features/tracking/providers/tracking_provider.dart';
@@ -41,6 +42,7 @@ Future<void> main() async {
 
   final feedbackRepository = ApiFeedbackRepository(apiClient);
   final userPreferenceRepository = ApiUserPreferenceRepository(apiClient);
+  final payoutRepository = ApiPayoutRepository(apiClient);
   final useInMemoryAuthSimulation =
       const bool.fromEnvironment('USE_IN_MEMORY_AUTH_SIMULATION');
   final authRepository = useInMemoryAuthSimulation
@@ -118,7 +120,7 @@ Future<void> main() async {
           create: (_) => PaymentProvider(chapaService, apiClient),
         ),
         ChangeNotifierProvider(
-          create: (_) => PayoutProvider(apiClient),
+          create: (_) => PayoutProvider(payoutRepository),
         ),
 
         ChangeNotifierProvider(

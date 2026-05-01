@@ -31,6 +31,15 @@ Use this section in the **Component Model Practice** tab of your Google Doc. X-M
 | **Required interface** | `UserPreferenceRepository` (`/users/me` read + profile patch for preference payload) |
 | **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiUserPreferenceRepository(apiClient)` |
 
+## Driver payouts component
+
+| Role | Content |
+|------|--------|
+| **Computation unit** | `PayoutProvider`: payout history list, payout account upsert, loading/error flags |
+| **Provided interface** | `loadPayouts`, `upsertAccount` |
+| **Required interface** | `PayoutRepository` (driver payouts list + payout account endpoints) |
+| **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiPayoutRepository(apiClient)` |
+
 ## Component model test simulation (idea for your log)
 
 - **Simulation A:** Replace `ApiTripRepository` with a fake that returns fixed `TripModel` lists; `TripProvider` should still update UI state without knowing HTTP.

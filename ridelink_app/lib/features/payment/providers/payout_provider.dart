@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../models/driver_payout.dart';
 import '../models/driver_payout_account.dart';
+import '../repositories/payout_repository.dart';
 
 class PayoutProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final PayoutRepository _repository;
 
   DriverPayoutAccount? _account;
   List<DriverPayout> _payouts = [];
@@ -15,7 +14,7 @@ class PayoutProvider extends ChangeNotifier {
   bool _saving = false;
   String? _error;
 
-  PayoutProvider(this._apiClient);
+  PayoutProvider(this._repository);
 
   DriverPayoutAccount? get account => _account;
   List<DriverPayout> get payouts => _payouts;
@@ -28,26 +27,7 @@ class PayoutProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await _apiClient.get(
-        ApiEndpoints.paymentsDriverPayouts,
-        queryParameters: {'page': page, 'limit': limit},
-      );
-      final data = response.data;
-      List items = const [];
-      if (data is Map<String, dynamic>) {
-        if (data['items'] is List) {
-          items = data['items'] as List;
-        } else if (data['data'] is Map<String, dynamic> &&
-            (data['data'] as Map<String, dynamic>)['items'] is List) {
-          items = (data['data'] as Map<String, dynamic>)['items'] as List;
-        }
-      } else if (data is List) {
-        items = data;
-      }
-      _payouts = items
-          .whereType<Map<String, dynamic>>()
-          .map(DriverPayout.fromJson)
-          .toList();
+      _payouts = await _repository.listPayouts(page: page, limit: limit);
     } on ApiException catch (e) {
       _error = e.message;
       _payouts = [];
@@ -64,22 +44,7 @@ class PayoutProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await _apiClient.post(
-        ApiEndpoints.paymentsDriverPayoutAccount,
-        data: account.toJson(),
-      );
-      final data = response.data;
-      if (data is Map<String, dynamic>) {
-        if (data['account'] is Map<String, dynamic>) {
-          _account = DriverPayoutAccount.fromJson(
-            data['account'] as Map<String, dynamic>,
-          );
-        } else {
-          _account = DriverPayoutAccount.fromJson(data);
-        }
-      } else {
-        _account = account;
-      }
+      _account = await _repository.upsertPayoutAccount(account);
       _saving = false;
       notifyListeners();
       return true;

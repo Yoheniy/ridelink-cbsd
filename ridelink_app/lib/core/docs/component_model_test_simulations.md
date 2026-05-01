@@ -82,3 +82,20 @@ Keep commute preference load/save logic independent from raw HTTP usage inside `
 ### Next simulation step (optional)
 Add an in-memory fake implementing `UserPreferenceRepository` and inject it in `main.dart` for offline demos, mirroring the auth simulation approach.
 
+## Simulation 6: Driver payouts (repository boundary implemented)
+
+### Goal
+Isolate payout REST shaping/parsing behind `PayoutRepository` so `PayoutProvider` only manages notifier state.
+
+### Setup
+- Interface: `PayoutRepository`
+- Production implementation: `ApiPayoutRepository`
+
+### Files
+- `lib/features/payment/repositories/payout_repository.dart`
+- `lib/features/payment/providers/payout_provider.dart`
+- `lib/main.dart`
+
+### Next simulation step (optional)
+Provide a fake `PayoutRepository` returning fixed `DriverPayout` rows for UI demos without calling payout APIs.
+

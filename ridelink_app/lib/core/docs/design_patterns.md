@@ -10,11 +10,12 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 |-----------|----------------|---------|
 | `AuthRepository` | `ApiAuthRepository`, `InMemoryAuthRepository` | `AuthProvider` |
 | `UserPreferenceRepository` | `ApiUserPreferenceRepository` | `UserPreferenceProvider` |
+| `PayoutRepository` | `ApiPayoutRepository` | `PayoutProvider` |
 | `FeedbackRepository` | `ApiFeedbackRepository` | `FeedbackProvider` |
 
-**Files:** `features/auth/repositories/`, `features/preferences/repositories/`, `features/feedback/repositories/`
+**Files:** `features/auth/repositories/`, `features/preferences/repositories/`, `features/payment/repositories/`, `features/feedback/repositories/`
 
-Trip, booking, search, trip-series, and payment flows currently call `ApiClient` directly from their providers while staying aligned with the upstream app; additional repository extraction can follow the same pattern as auth and preferences.
+Trip, booking, search, trip-series, and most payment (Chapa + REST checkout) flows still call `ApiClient` directly from their providers while staying aligned with the upstream app; further repository extraction can follow the same pattern as payouts and preferences.
 
 ## Observer Pattern
 
@@ -36,7 +37,7 @@ Trip, booking, search, trip-series, and payment flows currently call `ApiClient`
 
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
-Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `UserPreferenceProvider`, and `FeedbackProvider` (and optionally swapped for simulations such as in-memory auth).
+Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `UserPreferenceProvider`, `PayoutProvider`, and `FeedbackProvider` (and optionally swapped for simulations such as in-memory auth).
 
 For component-model simulations, the composition root can switch `AuthRepository`
 from `ApiAuthRepository` to `InMemoryAuthRepository` without changing
