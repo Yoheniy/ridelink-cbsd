@@ -28,6 +28,7 @@ class ApiEndpoints {
 
   // Trips
   static const String trips = '/trips';
+  static const String tripsRecommendations = '/trips/recommendations';
   static String tripById(String id) => '/trips/$id';
   static String tripStatus(String id) => '/trips/$id/status';
   static String tripBookings(String tripId) => '/trips/$tripId/bookings';
@@ -61,6 +62,10 @@ class ApiEndpoints {
   // Payments
   static const String paymentsInitiate = '/payments/initiate';
   static const String paymentsVerify = '/payments/verify';
+  static const String paymentsRefund = '/payments/refund';
+  static const String paymentsDriverPayoutAccount =
+      '/payments/driver-payout-account';
+  static const String paymentsDriverPayouts = '/payments/driver-payouts';
   static String paymentsHistory(String userId) => '/payments/history/$userId';
   static String paymentStatusByBooking(String bookingId) =>
       '/payments/booking/$bookingId/status';

@@ -27,6 +27,9 @@ import '../../features/chat/screens/chat_screen.dart';
 import '../../features/payment/screens/payment_screen.dart';
 import '../../features/payment/screens/payment_history_screen.dart';
 import '../../features/payment/screens/subscription_screen.dart';
+import '../../features/payment/screens/driver_payouts_screen.dart';
+import '../../features/payment/screens/payout_account_screen.dart';
+import '../../features/preferences/screens/preferences_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/settings_screen.dart';
@@ -254,8 +257,22 @@ class AppRouter {
           builder: (context, state) => const SettingsScreen(),
         ),
         GoRoute(
+          path: '/preferences',
+          builder: (context, state) => PreferencesScreen(
+            fromRegister: state.uri.queryParameters['fromRegister'] == '1',
+          ),
+        ),
+        GoRoute(
           path: '/verification',
           builder: (context, state) => const VerificationScreen(),
+        ),
+        GoRoute(
+          path: '/driver/payouts',
+          builder: (context, state) => const DriverPayoutsScreen(),
+        ),
+        GoRoute(
+          path: '/driver/payouts/account',
+          builder: (context, state) => const PayoutAccountScreen(),
         ),
         GoRoute(
           path: '/create-series',

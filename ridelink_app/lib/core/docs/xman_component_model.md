@@ -22,6 +22,15 @@ Use this section in the **Component Model Practice** tab of your Google Doc. X-M
 | **Required interface** | `BookingRepository`, `StorageService` (passenger id, demo mode) |
 | **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiBookingRepository(apiClient)` + `storageService` |
 
+## Commute preferences component
+
+| Role | Content |
+|------|--------|
+| **Computation unit** | `UserPreferenceProvider`: load/save nested commute preference from profile |
+| **Provided interface** | `loadFromMe`, `savePreference` |
+| **Required interface** | `UserPreferenceRepository` (`/users/me` read + profile patch for preference payload) |
+| **Exogenous connector** | `ChangeNotifierProvider` in `main.dart` injects `ApiUserPreferenceRepository(apiClient)` |
+
 ## Component model test simulation (idea for your log)
 
 - **Simulation A:** Replace `ApiTripRepository` with a fake that returns fixed `TripModel` lists; `TripProvider` should still update UI state without knowing HTTP.

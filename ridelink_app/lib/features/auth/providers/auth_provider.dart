@@ -158,7 +158,6 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      // POST /api/auth/sign-up/email
       final signUpData = await _repository.signUpWithEmail({
         'email': email,
         'password': password,
@@ -173,13 +172,11 @@ class AuthProvider extends ChangeNotifier {
       }
 
       if (role == UserRole.driver && sessionToken != null) {
-
         _state = AuthState.authenticated;
         notifyListeners();
         return true;
       }
 
-      // Optional: national ID (not part of sign-up body)
       if (nationalId != null && nationalId.isNotEmpty) {
         try {
           await _repository.completeProfile({'nationalId': nationalId});
@@ -188,7 +185,6 @@ class AuthProvider extends ChangeNotifier {
         }
       }
 
-      // Fetch full user data
       if (sessionToken != null) {
         try {
           final sessionData = await _repository.getSession();
@@ -206,8 +202,6 @@ class AuthProvider extends ChangeNotifier {
         }
       }
 
-      // If sign-up succeeded and token exists but user fetch failed,
-      // keep the session token for follow-up setup steps.
       if (sessionToken != null) {
         await _storage.saveAccessToken(sessionToken);
         _state = AuthState.authenticated;
@@ -369,14 +363,10 @@ class AuthProvider extends ChangeNotifier {
     return true;
   }
 
-  /// Refreshes the Convex JWT from your backend and applies it to [ConvexClient].
-  /// Call before Convex subscriptions that use `requireAuth` (e.g. chat/tracking).
   Future<void> syncConvexAuth() async {
     await ensureConvexAuth();
   }
 
-  /// Ensures Convex has auth for the current session.
-  /// Returns true when a token is successfully applied, false otherwise.
   Future<bool> ensureConvexAuth({bool forceRefresh = false}) {
     final inFlight = _syncConvexAuthInFlight;
     if (!forceRefresh && inFlight != null) {
@@ -392,8 +382,6 @@ class AuthProvider extends ChangeNotifier {
     return future;
   }
 
-  /// Pushes the backend-issued Convex JWT into [ConvexClient] so queries that
-  /// call `requireAuth` succeed (chat, tracking, notifications).
   Future<bool> _syncConvexAuth({bool forceRefresh = false}) async {
     final convex = _convex;
     if (convex == null) return false;
@@ -435,7 +423,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch a JWT for Convex real-time auth.
   Future<String?> fetchConvexToken() async {
     try {
       final data = await _repository.getConvexToken();
@@ -494,7 +481,6 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
       await _repository.completeProfile(data);
-      // Re-fetch session to get updated user
       final sessionData = await _repository.getSession();
       if (sessionData?['user'] != null) {
         _user =

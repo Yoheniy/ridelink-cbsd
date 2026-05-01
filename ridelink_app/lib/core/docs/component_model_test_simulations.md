@@ -54,7 +54,7 @@ Prove that authentication state flow remains valid when the auth dependency is s
 - `lib/main.dart`
 
 ### Procedure
-1. Set `useInMemoryAuthSimulation = true` in `main.dart`.
+1. Run with `--dart-define=USE_IN_MEMORY_AUTH_SIMULATION=true` (see `main.dart`).
 2. Launch app and call login/register flows through `AuthProvider`.
 3. Observe that:
    - token persistence path is still executed
@@ -64,4 +64,21 @@ Prove that authentication state flow remains valid when the auth dependency is s
 
 ### Result
 `AuthProvider` behavior is preserved when the repository implementation is swapped. This confirms the auth component uses a stable required interface and supports exogenous composition in X-MAN terms.
+
+## Simulation 5: Commute preferences (repository boundary implemented)
+
+### Goal
+Keep commute preference load/save logic independent from raw HTTP usage inside `UserPreferenceProvider`.
+
+### Setup
+- Interface: `UserPreferenceRepository`
+- Production implementation: `ApiUserPreferenceRepository`
+
+### Files
+- `lib/features/preferences/repositories/user_preference_repository.dart`
+- `lib/features/preferences/providers/user_preference_provider.dart`
+- `lib/main.dart`
+
+### Next simulation step (optional)
+Add an in-memory fake implementing `UserPreferenceRepository` and inject it in `main.dart` for offline demos, mirroring the auth simulation approach.
 

@@ -79,6 +79,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(height: 1),
+          ListTile(
+            title: const Text('Commute preferences'),
+            subtitle: const Text('Route, time and budget for recommendations'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/preferences'),
+          ),
+          const Divider(height: 1),
           SwitchListTile(
             title: Text(l10n.notifications),
             value: _notificationsEnabled,

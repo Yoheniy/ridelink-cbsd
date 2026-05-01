@@ -61,6 +61,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     final scheme = Theme.of(context).colorScheme;
     final iconColor = scheme.primary;
     final isAdmin = context.read<AuthProvider>().user?.role.name == 'admin';
+    final isDriver = context.read<AuthProvider>().isDriver;
 
     void closeDrawer() => Navigator.of(context).pop();
 
@@ -105,6 +106,15 @@ class _MainScaffoldState extends State<MainScaffold> {
               title: Text(l10n.paymentHistory),
               onTap: () => afterClose(() => context.push('/payment-history')),
             ),
+            if (isDriver)
+              ListTile(
+                leading: Icon(
+                  Icons.wallet_outlined,
+                  color: iconColor,
+                ),
+                title: const Text('Payouts'),
+                onTap: () => afterClose(() => context.push('/driver/payouts')),
+              ),
             if (isAdmin)
               ListTile(
                 leading: Icon(

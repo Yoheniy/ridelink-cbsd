@@ -1,33 +1,71 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../../../core/services/chapa_service.dart';
 
 class PaymentRecord {
   final String id;
   final String description;
   final double amount;
+  final double baseAmount;
+  final double platformFee;
+  final double driverAmount;
+  final String currency;
   final String date;
   final PaymentStatus status;
   final String? txRef;
+  final String? chapaReference;
+  final DateTime? verifiedAt;
+  final String? refundStatus;
 
   const PaymentRecord({
     required this.id,
     required this.description,
     required this.amount,
+    this.baseAmount = 0,
+    this.platformFee = 0,
+    this.driverAmount = 0,
+    this.currency = 'ETB',
     required this.date,
     required this.status,
     this.txRef,
+    this.chapaReference,
+    this.verifiedAt,
+    this.refundStatus,
   });
 
   factory PaymentRecord.fromJson(Map<String, dynamic> json) {
+    final createdAt = json['createdAt'] as String?;
+    final verifiedAtRaw = json['verifiedAt'] as String?;
+    final booking = json['booking'] as Map<String, dynamic>?;
+    final trip = booking?['trip'] as Map<String, dynamic>?;
+    final route = (trip?['origin'] != null && trip?['destination'] != null)
+        ? '${trip?['origin']} → ${trip?['destination']}'
+        : null;
     return PaymentRecord(
       id: json['id'] as String? ?? '',
-      description: json['description'] as String? ?? '',
+      description: route ??
+          json['description'] as String? ??
+          'Trip payment',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
-      date: json['date'] as String? ?? '',
+      baseAmount: (json['baseAmount'] as num?)?.toDouble() ?? 0.0,
+      platformFee: (json['platformFee'] as num?)?.toDouble() ?? 0.0,
+      driverAmount: (json['driverAmount'] as num?)?.toDouble() ?? 0.0,
+      currency: json['currency'] as String? ?? 'ETB',
+      date: createdAt ?? json['date'] as String? ?? '',
       status: _parseStatus(json['status'] as String?),
-      txRef: json['txRef'] as String?,
+      txRef: json['txRef'] as String? ?? json['reference'] as String?,
+      chapaReference: json['chapaReference'] as String?,
+      verifiedAt:
+          verifiedAtRaw != null ? DateTime.tryParse(verifiedAtRaw) : null,
+      refundStatus: (json['refunds'] is List &&
+              (json['refunds'] as List).isNotEmpty)
+          ? ((json['refunds'] as List).first as Map<String, dynamic>)['status']
+              as String?
+          : null,
     );
   }
 
@@ -47,6 +85,7 @@ class PaymentRecord {
 
 class PaymentProvider extends ChangeNotifier {
   final ChapaService _chapaService;
+  final ApiClient _apiClient;
 
   List<PaymentRecord> _payments = [];
   bool _loading = false;
@@ -66,53 +105,91 @@ class PaymentProvider extends ChangeNotifier {
   List<PaymentRecord> get pendingPayments =>
       _payments.where((p) => p.status == PaymentStatus.pending).toList();
 
-  static final _mockPayments = [
-    const PaymentRecord(
-      id: 'p1',
-      description: 'Bole → Megenagna',
-      amount: 45,
-      date: '2025-02-28',
-      status: PaymentStatus.completed,
-      txRef: 'ridelink-abc123',
-    ),
-    const PaymentRecord(
-      id: 'p2',
-      description: 'Kazanchis → CMC',
-      amount: 35,
-      date: '2025-02-27',
-      status: PaymentStatus.completed,
-      txRef: 'ridelink-def456',
-    ),
-    const PaymentRecord(
-      id: 'p3',
-      description: 'Piassa → Bole',
-      amount: 50,
-      date: '2025-02-26',
-      status: PaymentStatus.pending,
-      txRef: 'ridelink-ghi789',
-    ),
-  ];
+  PaymentProvider(this._chapaService, this._apiClient);
 
-  PaymentProvider(this._chapaService);
-
-  /// No backend payment history endpoint exists yet; use mock data.
-  Future<void> loadPaymentHistory([String? userId]) async {
+  Future<void> loadPaymentHistory(String userId) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
-    _payments = _mockPayments;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.paymentsHistory(userId));
+      final data = response.data;
+      List items = const [];
+      if (data is List) {
+        items = data;
+      } else if (data is Map<String, dynamic>) {
+        final directItems = data['items'];
+        final nestedData = data['data'];
+        if (directItems is List) {
+          items = directItems;
+        } else if (nestedData is Map<String, dynamic> &&
+            nestedData['items'] is List) {
+          items = nestedData['items'] as List;
+        }
+      }
+      _payments = items
+          .map((e) => PaymentRecord.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException catch (e) {
+      _error = e.message;
+      _payments = [];
+    } catch (e) {
+      _error = 'Failed to load payment history';
+      _payments = [];
+    }
 
     _loading = false;
     notifyListeners();
   }
 
   Future<Map<String, dynamic>?> getBookingPaymentStatus(String bookingId) async {
-    final lastTxRef = _lastPaymentResult?.txRef;
-    if (lastTxRef == null) {
-      return {'paid': false};
+    try {
+      final response =
+          await _apiClient.get(ApiEndpoints.paymentStatusByBooking(bookingId));
+      return response.data as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
     }
-    return {'paid': true, 'txRef': lastTxRef, 'bookingId': bookingId};
+  }
+
+  Future<bool> verifyPayment(String txRef) async {
+    try {
+      await _apiClient.post(
+        ApiEndpoints.paymentsVerify,
+        data: {'txRef': txRef},
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Map<String, dynamic>? _extractCheckout(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final checkout = data['checkout'];
+      if (checkout is Map<String, dynamic>) return checkout;
+      if (data['data'] is Map<String, dynamic>) {
+        final nested = data['data'] as Map<String, dynamic>;
+        final nestedCheckout = nested['checkout'];
+        if (nestedCheckout is Map<String, dynamic>) return nestedCheckout;
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> initiatePayment({
+    String? bookingId,
+    String? subscriptionId,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.paymentsInitiate,
+      data: {
+        if (bookingId != null) 'bookingId': bookingId,
+        if (subscriptionId != null) 'subscriptionId': subscriptionId,
+      },
+    );
+    return _extractCheckout(response.data);
   }
 
   Future<ChapaPaymentResponse> payForTrip({
@@ -128,11 +205,37 @@ class PaymentProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final txRef = _chapaService.generateTxRef();
+    Map<String, dynamic>? checkout;
+    try {
+      checkout = await initiatePayment(
+        bookingId: bookingId,
+      );
+      if (checkout == null) {
+        _processing = false;
+        _error = 'Failed to initiate payment';
+        notifyListeners();
+        return const ChapaPaymentResponse(
+          result: ChapaPaymentResult.failed,
+          message: 'Failed to initiate payment',
+        );
+      }
+    } on ApiException catch (e) {
+      _processing = false;
+      _error = e.message;
+      notifyListeners();
+      return ChapaPaymentResponse(
+        result: ChapaPaymentResult.failed,
+        message: e.message,
+      );
+    }
+
+    final txRef = checkout['txRef']?.toString() ?? _chapaService.generateTxRef();
+    final checkoutAmount = checkout['amount']?.toString() ?? amount;
 
     final result = await _chapaService.initiatePayment(
+      // ignore: use_build_context_synchronously
       context: context,
-      amount: amount,
+      amount: checkoutAmount,
       email: email,
       phone: phone,
       firstName: firstName,
@@ -141,6 +244,11 @@ class PaymentProvider extends ChangeNotifier {
       title: 'Trip Payment',
       description: 'Payment for booking $bookingId',
     );
+
+    if (result.result == ChapaPaymentResult.success && result.txRef != null) {
+      await verifyPayment(result.txRef!);
+      await getBookingPaymentStatus(bookingId);
+    }
 
     _lastPaymentResult = result;
     _processing = false;
@@ -151,8 +259,7 @@ class PaymentProvider extends ChangeNotifier {
 
   Future<ChapaPaymentResponse> subscribeToTrip({
     required BuildContext context,
-    required String tripId,
-    required String plan,
+    required String subscriptionId,
     required String amount,
     required String email,
     required String phone,
@@ -163,24 +270,78 @@ class PaymentProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final txRef = _chapaService.generateTxRef();
+    Map<String, dynamic>? checkout;
+    try {
+      checkout = await initiatePayment(
+        subscriptionId: subscriptionId,
+      );
+      if (checkout == null) {
+        _processing = false;
+        _error = 'Failed to initiate subscription payment';
+        notifyListeners();
+        return const ChapaPaymentResponse(
+          result: ChapaPaymentResult.failed,
+          message: 'Failed to initiate payment',
+        );
+      }
+    } on ApiException catch (e) {
+      _processing = false;
+      _error = e.message;
+      notifyListeners();
+      return ChapaPaymentResponse(
+        result: ChapaPaymentResult.failed,
+        message: e.message,
+      );
+    }
+
+    final txRef = checkout['txRef']?.toString() ?? _chapaService.generateTxRef();
+    final checkoutAmount = checkout['amount']?.toString() ?? amount;
 
     final result = await _chapaService.initiatePayment(
+      // ignore: use_build_context_synchronously
       context: context,
-      amount: amount,
+      amount: checkoutAmount,
       email: email,
       phone: phone,
       firstName: firstName,
       lastName: lastName,
       txRef: txRef,
-      title: '$plan Subscription',
-      description: '$plan subscription for trip $tripId',
+      title: 'Subscription Payment',
+      description: 'Payment for subscription $subscriptionId',
     );
+
+    if (result.result == ChapaPaymentResult.success && result.txRef != null) {
+      await verifyPayment(result.txRef!);
+    }
 
     _lastPaymentResult = result;
     _processing = false;
     notifyListeners();
 
     return result;
+  }
+
+  Future<bool> requestRefund({
+    required String txRef,
+    String? reason,
+  }) async {
+    try {
+      await _apiClient.post(
+        ApiEndpoints.paymentsRefund,
+        data: {
+          'txRef': txRef,
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason,
+        },
+      );
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Failed to request refund';
+      notifyListeners();
+      return false;
+    }
   }
 }

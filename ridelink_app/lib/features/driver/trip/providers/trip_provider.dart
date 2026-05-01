@@ -114,7 +114,13 @@ class TripProvider extends ChangeNotifier {
     try {
       final driverId = await _storage.getDriverId();
       if (driverId == null || driverId.startsWith('demo')) {
-        _driverTrips = _mockTrips;
+        if (kReleaseMode) {
+          _driverTrips = [];
+          _error =
+              'Sign in with a verified driver account to see your trips.';
+        } else {
+          _driverTrips = _mockTrips;
+        }
         _loading = false;
         notifyListeners();
         return;
@@ -126,18 +132,25 @@ class TripProvider extends ChangeNotifier {
         _driverTrips = list
             .map((e) => TripModel.fromJson(e as Map<String, dynamic>))
             .toList();
+      } else {
+        _driverTrips = [];
       }
     } catch (e) {
       debugPrint('Failed to load trips: $e');
-      _driverTrips = _mockTrips;
+      if (kReleaseMode) {
+        _driverTrips = [];
+        _error = _readError(e, fallback: 'Could not load trips.');
+      } else {
+        _driverTrips = _mockTrips;
+      }
     }
 
     _loading = false;
     notifyListeners();
   }
 
-  /// Resolves a trip for the driver-details flow. Uses the API when available;
-  /// otherwise falls back to catalog mocks (t1, t2, …) or a synthetic trip for any id.
+  /// Resolves a trip for the passenger/driver-details flow from the API.
+  /// In debug/profile only, falls back to catalog or synthetic trips if the API fails.
   Future<TripModel?> getTripById(String id) async {
     _loading = true;
     _error = null;
@@ -153,10 +166,15 @@ class TripProvider extends ChangeNotifier {
         resolved = TripModel.fromJson(data);
       }
     } catch (e) {
-      debugPrint('Trip by id API failed (using mock): $e');
+      debugPrint('Trip by id API failed: $e');
+      if (kReleaseMode) {
+        _error = _readError(e, fallback: 'Could not load trip.');
+      }
     }
 
-    resolved ??= _mockTripFromCatalog(id) ?? _syntheticMockTrip(id);
+    if (resolved == null && !kReleaseMode) {
+      resolved = _mockTripFromCatalog(id) ?? _syntheticMockTrip(id);
+    }
 
     _selectedTrip = resolved;
     _loading = false;

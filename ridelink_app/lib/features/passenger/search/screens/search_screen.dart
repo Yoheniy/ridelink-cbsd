@@ -57,6 +57,7 @@ class _SearchScreenState extends State<SearchScreen> {
             page: 1,
             limit: 10,
           );
+      context.read<SearchProvider>().loadRecommendations(limit: 8);
     });
   }
 
@@ -146,6 +147,15 @@ class _SearchScreenState extends State<SearchScreen> {
                   page: 1,
                   limit: 10,
                 );
+            context.read<SearchProvider>().loadRecommendations(
+                  origin: _originResult?.name,
+                  destination: _destinationResult?.name,
+                  originLat: _originResult?.lat,
+                  originLng: _originResult?.lng,
+                  destinationLat: _destinationResult?.lat,
+                  destinationLng: _destinationResult?.lng,
+                  limit: 8,
+                );
             _onSearch();
           },
           onApplyOnly: (o, d) {
@@ -159,6 +169,15 @@ class _SearchScreenState extends State<SearchScreen> {
                   status: 'scheduled',
                   page: 1,
                   limit: 10,
+                );
+            context.read<SearchProvider>().loadRecommendations(
+                  origin: _originResult?.name,
+                  destination: _destinationResult?.name,
+                  originLat: _originResult?.lat,
+                  originLng: _originResult?.lng,
+                  destinationLat: _destinationResult?.lat,
+                  destinationLng: _destinationResult?.lng,
+                  limit: 8,
                 );
             Navigator.of(ctx).pop();
           },
@@ -220,7 +239,18 @@ class _SearchScreenState extends State<SearchScreen> {
 
           return RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () => searchProvider.loadBrowseDrivers(),
+            onRefresh: () async {
+              await searchProvider.loadBrowseDrivers();
+              await searchProvider.loadRecommendations(
+                origin: _originResult?.name,
+                destination: _destinationResult?.name,
+                originLat: _originResult?.lat,
+                originLng: _originResult?.lng,
+                destinationLat: _destinationResult?.lat,
+                destinationLng: _destinationResult?.lng,
+                limit: 8,
+              );
+            },
             child: CustomScrollView(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -393,12 +423,22 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (recommended.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          l10n.noDriversFound,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              searchProvider.recommendationsError ?? l10n.noDriversFound,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () => context.push('/preferences'),
+                              child: const Text('Set commute preferences'),
+                            ),
+                          ],
                         ),
                       ),
                     )

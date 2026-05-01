@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../core/network/api_exceptions.dart';
 
 import '../../../../core/constants/enums.dart';
 import '../../../../core/network/api_client.dart';
@@ -21,10 +24,13 @@ class SearchProvider extends ChangeNotifier {
   List<TripModel> _searchResults = [];
   List<TripModel> _sortedResults = [];
   List<TripModel> _browseDriverTrips = [];
+  List<TripModel> _recommendedTrips = [];
   bool _loading = false;
   bool _browseLoading = false;
+  bool _recommendationsLoading = false;
   String? _error;
   String? _browseError;
+  String? _recommendationsError;
   SortMode _sortMode = SortMode.recommended;
   BrowseSortMode _browseSortMode = BrowseSortMode.rating;
   bool _browseRecommendedOnly = false;
@@ -55,6 +61,7 @@ class SearchProvider extends ChangeNotifier {
 
   List<TripModel> get searchResults => _sortedResults;
   List<TripModel> get browseDriverTrips => _browseDriverTrips;
+  List<TripModel> get recommendedTrips => _recommendedTrips;
   bool get browseHasMore => _browseHasMore;
   bool get browseLoadingMore => _browseLoadingMore;
   BrowseSortMode get browseSortMode => _browseSortMode;
@@ -119,14 +126,15 @@ class SearchProvider extends ChangeNotifier {
 
   /// Top picks for the horizontal "Recommended" strip.
   List<TripModel> get recommendedBrowseTrips {
-    final sorted = browseDriverTripsSorted;
-    return sorted.take(8).toList();
+    return List<TripModel>.from(_recommendedTrips);
   }
 
   bool get loading => _loading;
   bool get browseLoading => _browseLoading;
+  bool get recommendationsLoading => _recommendationsLoading;
   String? get error => _error;
   String? get browseError => _browseError;
+  String? get recommendationsError => _recommendationsError;
   SortMode get sortMode => _sortMode;
   double? get maxPrice => _maxPrice;
   int? get minSeats => _minSeats;
@@ -276,6 +284,51 @@ class SearchProvider extends ChangeNotifier {
     await loadBrowseDrivers();
   }
 
+  Future<void> loadRecommendations({
+    String? origin,
+    String? destination,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
+    int limit = 8,
+  }) async {
+    _recommendationsLoading = true;
+    _recommendationsError = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.tripsRecommendations,
+        queryParameters: {
+          'status': 'scheduled',
+          'limit': limit,
+          if (origin != null && origin.trim().isNotEmpty) 'origin': origin,
+          if (destination != null && destination.trim().isNotEmpty)
+            'destination': destination,
+          if (originLat != null) 'originLat': originLat,
+          if (originLng != null) 'originLng': originLng,
+          if (destinationLat != null) 'destinationLat': destinationLat,
+          if (destinationLng != null) 'destinationLng': destinationLng,
+        },
+      );
+      final tripMaps = _extractTripMaps(response.data);
+      _recommendedTrips = tripMaps.map(TripModel.fromJson).toList();
+      _recommendationsError = null;
+    } catch (e) {
+      debugPrint('Recommendations failed: $e');
+      _recommendedTrips = [];
+      if (e is ApiException && e.message.isNotEmpty) {
+        _recommendationsError = e.message;
+      } else {
+        _recommendationsError = 'Could not load recommendations.';
+      }
+    }
+
+    _recommendationsLoading = false;
+    notifyListeners();
+  }
+
   void applyBrowseFilters({
     required BrowseSortMode sort,
     required bool recommendedOnly,
@@ -360,8 +413,15 @@ class SearchProvider extends ChangeNotifier {
       _error = null;
     } catch (e) {
       debugPrint('Search failed: $e');
-      _error = 'Could not load trips. Showing sample results.';
-      _searchResults = _fallbackResults;
+      if (kReleaseMode) {
+        _error = e is ApiException && e.message.isNotEmpty
+            ? e.message
+            : 'Could not load trips. Check your connection and try again.';
+        _searchResults = [];
+      } else {
+        _error = 'Could not load trips. Showing sample results.';
+        _searchResults = _fallbackResults;
+      }
     }
 
     _applyFiltersAndSort();

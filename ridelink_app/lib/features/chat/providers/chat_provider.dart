@@ -7,6 +7,22 @@ import '../../../core/constants/convex_functions.dart';
 
 typedef ConvexAuthSync = Future<bool> Function({bool forceRefresh});
 
+/// Convex / JSON often delivers integers as [double]; avoid `as int?` casts.
+int _asInt(dynamic value, [int fallback = 0]) {
+  if (value == null) return fallback;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString()) ?? fallback;
+}
+
+DateTime? _asDateTimeFromMillis(dynamic value) {
+  if (value == null) return null;
+  final ms = _asInt(value, 0);
+  if (ms <= 0) return null;
+  return DateTime.fromMillisecondsSinceEpoch(ms);
+}
+
 class ChatConversation {
   final String id;
   final String tripId;
@@ -37,18 +53,18 @@ class ChatConversation {
         : lastMessageRaw is Map<String, dynamic>
             ? lastMessageRaw['content'] as String?
             : null;
+    final participantsList = json['participants'];
+    final participants = participantsList is List
+        ? participantsList.map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+        : <String>[];
     return ChatConversation(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
-      tripId: json['tripId'] as String? ?? '',
-      bookingId: json['bookingId'] as String? ?? '',
-      participants: (json['participants'] as List?)?.cast<String>() ?? [],
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      tripId: json['tripId']?.toString() ?? '',
+      bookingId: json['bookingId']?.toString() ?? '',
+      participants: participants,
       lastMessage: lastMessageText,
-      unreadCount: json['unreadCount'] as int? ?? 0,
-      lastMessageAt: json['lastMessageAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              (json['lastMessageAt'] as num).toInt(),
-            )
-          : null,
+      unreadCount: _asInt(json['unreadCount'], 0),
+      lastMessageAt: _asDateTimeFromMillis(json['lastMessageAt']),
       displayName: json['displayName'] as String? ??
           json['name'] as String? ??
           'Trip chat',
@@ -81,12 +97,10 @@ class ChatMessage {
   factory ChatMessage.fromJson(
       Map<String, dynamic> json, String currentUserId) {
     return ChatMessage(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       text: json['content'] as String? ?? json['text'] as String? ?? '',
-      isSent: (json['senderId'] as String?) == currentUserId,
-      sentAt: json['_creationTime'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['_creationTime'] as int)
-          : null,
+      isSent: (json['senderId']?.toString()) == currentUserId,
+      sentAt: _asDateTimeFromMillis(json['_creationTime']),
     );
   }
 

@@ -1,13 +1,16 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -29,10 +32,27 @@ class _VerificationScreenState extends State<VerificationScreen> {
   String? _statusError;
   List<Map<String, dynamic>> _documents = [];
 
+  final TextEditingController _nationalIdController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVerificationStatus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authUser = context.read<AuthProvider>().user;
+      if (authUser != null) {
+        _phoneController.text = authUser.phone;
+        _nationalIdController.text = authUser.nationalId;
+      }
+      _loadVerificationStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _nationalIdController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadVerificationStatus() async {
@@ -116,6 +136,23 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
 
+    final phone = _phoneController.text.trim();
+    final nationalId = _nationalIdController.text.trim();
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your phone number')),
+      );
+      return;
+    }
+
+    if (nationalId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your national ID number')),
+      );
+      return;
+    }
+
     if (_nationalIdFront == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload the front of your National ID')),
@@ -131,15 +168,126 @@ class _VerificationScreenState extends State<VerificationScreen> {
     }
 
     setState(() => _isSubmitting = true);
+    try {
+      final api = context.read<ApiClient>();
+      final auth = context.read<AuthProvider>();
 
-    // TODO: Upload documents via API when endpoint is available
-    await Future.delayed(const Duration(seconds: 2));
+      // Upload required ID docs (front/back) as ID documents.
+      final frontDocId =
+          await _uploadDocument(file: _nationalIdFront!, docType: 'ID');
+      if (_nationalIdBack != null) {
+        await _uploadDocument(file: _nationalIdBack!, docType: 'ID');
+      }
+      if (user.isDriver && _driversLicense != null) {
+        await _uploadDocument(file: _driversLicense!, docType: 'LICENSE');
+      }
+
+      await api.patch(
+        ApiEndpoints.completeProfile,
+        data: {
+          'phone': phone,
+          'nationalId': nationalId,
+          'idDocumentId': frontDocId,
+        },
+      );
+
+      await auth.checkAuthStatus();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Documents uploaded successfully. Verification pending.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload documents: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
 
     if (!mounted) return;
     setState(() {
       _isSubmitting = false;
     });
     await _loadVerificationStatus();
+  }
+
+  Future<String> _uploadDocument({
+    required File file,
+    required String docType,
+  }) async {
+    final api = context.read<ApiClient>();
+    final fileName = file.path.split('/').last;
+    final contentType = lookupMimeType(file.path) ?? 'application/octet-stream';
+
+    Map<String, dynamic>? payload;
+    try {
+      final response = await api.post(
+        '/files/upload',
+        data: {
+          'fileName': fileName,
+          'contentType': contentType,
+          'docType': docType,
+        },
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        if (data['data'] is Map<String, dynamic>) {
+          payload = (data['data'] as Map).cast<String, dynamic>();
+        } else {
+          payload = data;
+        }
+      }
+    } catch (_) {
+      final response = await api.post(
+        ApiEndpoints.presignUpload,
+        data: {
+          'fileName': fileName,
+          'contentType': contentType,
+          'docType': docType,
+        },
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        if (data['data'] is Map<String, dynamic>) {
+          payload = (data['data'] as Map).cast<String, dynamic>();
+        } else {
+          payload = data;
+        }
+      }
+    }
+
+    final putUrl = payload?['url']?.toString();
+    final documentId = payload?['documentId']?.toString();
+    if (putUrl == null || documentId == null) {
+      throw Exception('Upload URL or document id missing');
+    }
+
+    final dio = Dio();
+    final length = await file.length();
+    await dio.putUri(
+      Uri.parse(putUrl),
+      data: file.openRead(),
+      options: Options(
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': length,
+        },
+      ),
+    );
+
+    try {
+      await api.post('/files/complete', data: {'documentId': documentId});
+    } catch (_) {
+      await api.post(ApiEndpoints.completeUpload, data: {'documentId': documentId});
+    }
+
+    return documentId;
   }
 
   @override
@@ -223,6 +371,38 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Personal details',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _phoneController,
+                    labelText: 'Phone number',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _nationalIdController,
+                    labelText: 'National ID number',
+                    prefixIcon: Icons.badge_outlined,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'These must match your documents. Your account stays pending until an admin approves your upload.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondaryLight,
+                        ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             Text('National ID (Required)',
                 style: Theme.of(context).textTheme.titleMedium),

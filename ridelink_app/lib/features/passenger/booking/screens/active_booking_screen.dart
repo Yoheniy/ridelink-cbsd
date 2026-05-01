@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/constants/enums.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../chat/providers/chat_provider.dart';
+import '../../../payment/providers/payment_provider.dart';
 import '../providers/booking_provider.dart';
 
 class ActiveBookingScreen extends StatefulWidget {
@@ -23,6 +24,8 @@ class ActiveBookingScreen extends StatefulWidget {
 
 class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
   BookingModel? _booking;
+  bool _checkingPayment = false;
+  Map<String, dynamic>? _paymentStatus;
 
   @override
   void initState() {
@@ -45,6 +48,20 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
             b.status == BookingStatus.confirmed)
         .firstOrNull;
     setState(() => _booking = booking);
+    if (booking != null && booking.status == BookingStatus.confirmed) {
+      await _loadPaymentStatus(booking.id);
+    }
+  }
+
+  Future<void> _loadPaymentStatus(String bookingId) async {
+    setState(() => _checkingPayment = true);
+    final status =
+        await context.read<PaymentProvider>().getBookingPaymentStatus(bookingId);
+    if (!mounted) return;
+    setState(() {
+      _paymentStatus = status;
+      _checkingPayment = false;
+    });
   }
 
   void _onCancelBooking() {
@@ -110,6 +127,71 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
         content: Text('Chat will be available once the request is accepted.'),
       ),
     );
+  }
+
+  Future<void> _requestRefund(BookingModel booking) async {
+    final reasonController = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request refund'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please provide a short reason for the refund request.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Reason',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final reason = reasonController.text.trim();
+    if (reason.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reason must be at least 3 characters.')),
+      );
+      return;
+    }
+    final txRef = _paymentStatus?['txRef']?.toString();
+    if (txRef == null || txRef.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment reference not found.')),
+      );
+      return;
+    }
+    final ok = await context.read<PaymentProvider>().requestRefund(
+          txRef: txRef,
+          reason: reason,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Refund request submitted.' : 'Failed to submit refund request.'),
+      ),
+    );
+    if (ok) {
+      await _loadPaymentStatus(booking.id);
+    }
   }
 
   @override
@@ -266,6 +348,22 @@ class _ActiveBookingScreenState extends State<ActiveBookingScreen> {
               isOutlined: true,
               foregroundColor: AppColors.error,
             ),
+            if (_checkingPayment)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(),
+              ),
+            if ((_paymentStatus?['paid'] == true) &&
+                (booking.status == BookingStatus.confirmed)) ...[
+              const SizedBox(height: 12),
+              AppButton(
+                text: 'Request Refund',
+                icon: Icons.undo_outlined,
+                onPressed: () => _requestRefund(booking),
+                isOutlined: true,
+                foregroundColor: AppColors.warning,
+              ),
+            ],
           ],
         ),
       ),

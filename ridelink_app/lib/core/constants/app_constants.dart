@@ -2,7 +2,23 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'RideLink';
-  static const String baseUrl = 'https://backend-way5.onrender.com/api';
+
+  /// REST API base, including `/api` suffix.
+  ///
+  /// Prefer overriding per environment:
+  /// `flutter run --dart-define=API_BASE_URL=https://your-host.example.com/api`
+  ///
+  /// See repo root `docs/ENVIRONMENT.md`.
+  static String get baseUrl {
+    const fromEnv = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: '',
+    );
+    if (fromEnv.trim().isNotEmpty) {
+      return fromEnv.trim();
+    }
+    return 'https://backend-way5.onrender.com/api';
+  }
   static const String convexUrl = 'https://reminiscent-crab-167.eu-west-1.convex.cloud';
   /// Must match backend `FRONTEND_URL` used by Better Auth/CORS.
   /// Ask backend team for the exact value.

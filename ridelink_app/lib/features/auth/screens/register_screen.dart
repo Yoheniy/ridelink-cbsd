@@ -54,13 +54,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (_selectedRole == UserRole.driver) {
         context.go('/register/driver-documents');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please log in.'),
-            backgroundColor: AppColors.success,
+        final setNow = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Set commute preferences?'),
+            content: const Text(
+              'You can now set preferred route, departure time and budget for better ride recommendations.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Skip'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Set now'),
+              ),
+            ],
           ),
         );
-        context.go('/login');
+        if (!mounted) return;
+        if (setNow == true) {
+          context.go('/preferences?fromRegister=1');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration successful! Please log in.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          context.go('/login');
+        }
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

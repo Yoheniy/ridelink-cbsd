@@ -4,7 +4,6 @@ import 'package:ridelink/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/chapa_service.dart';
-import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -51,7 +50,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final authProvider = context.read<AuthProvider>();
     final paymentProvider = context.read<PaymentProvider>();
     final seriesProvider = context.read<TripSeriesProvider>();
-    final storage = context.read<StorageService>();
     final user = authProvider.user;
 
     final pricePerTrip = trip.pricePerSeat;
@@ -59,10 +57,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ? (pricePerTrip * 5 * 0.8).toStringAsFixed(0)
         : (pricePerTrip * 20 * 0.75).toStringAsFixed(0);
 
+    final subscriptionId = await seriesProvider.subscribe(
+      seriesId: trip.seriesId!,
+      subscriptionType: _selectedPlan,
+      pricePerPeriod: double.tryParse(amount) ?? 0,
+    );
+    if (!mounted) return;
+    if (subscriptionId == null || subscriptionId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(seriesProvider.error ?? 'Failed to create subscription'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final result = await paymentProvider.subscribeToTrip(
       context: context,
-      tripId: widget.tripId,
-      plan: _selectedPlan == 'weekly' ? 'Weekly' : 'Monthly',
+      subscriptionId: subscriptionId,
       amount: amount,
       email: user?.email ?? 'user@ridelink.com',
       phone: user?.phone ?? '0911223344',
@@ -73,15 +87,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (!mounted) return;
 
     if (result.result == ChapaPaymentResult.success) {
-      final passengerId = await storage.getPassengerId();
-      if (passengerId != null) {
-        await seriesProvider.subscribe(
-          seriesId: trip.seriesId!,
-          passengerId: passengerId,
-          subscriptionType: _selectedPlan,
-          pricePerPeriod: double.tryParse(amount) ?? 0,
-        );
-      }
+      await seriesProvider.loadPassengerSubscriptions();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -9,15 +9,12 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 | Interface | Implementation | Used by |
 |-----------|----------------|---------|
 | `AuthRepository` | `ApiAuthRepository`, `InMemoryAuthRepository` | `AuthProvider` |
-| `TripRepository` | `ApiTripRepository` | `TripProvider` |
-| `BookingRepository` | `ApiBookingRepository` | `BookingProvider` |
-| `SearchRepository` | `ApiSearchRepository` | `SearchProvider` |
-| `TripSeriesRepository` | `ApiTripSeriesRepository` | `TripSeriesProvider` |
+| `UserPreferenceRepository` | `ApiUserPreferenceRepository` | `UserPreferenceProvider` |
 | `FeedbackRepository` | `ApiFeedbackRepository` | `FeedbackProvider` |
 
-**Files:** `features/auth/repositories/`, `features/driver/trip/repositories/`, `features/passenger/booking/repositories/`, `features/passenger/search/repositories/`, `features/feedback/repositories/`
+**Files:** `features/auth/repositories/`, `features/preferences/repositories/`, `features/feedback/repositories/`
 
-`SearchProvider` still owns **geocoding** via `GebetaMapsService`; only the **GET /trips** query lives in `SearchRepository`.
+Trip, booking, search, trip-series, and payment flows currently call `ApiClient` directly from their providers while staying aligned with the upstream app; additional repository extraction can follow the same pattern as auth and preferences.
 
 ## Observer Pattern
 
@@ -39,7 +36,7 @@ Short reference for CBSD / component-based documentation. Paths are under `lib/`
 
 **Intent:** Construct services and repositories once in `main.dart`, inject into providers.
 
-Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `TripProvider`, `BookingProvider`, `SearchProvider`, `TripSeriesProvider`, and `FeedbackProvider`.
+Repositories are created next to `ApiClient`, then passed into `AuthProvider`, `UserPreferenceProvider`, and `FeedbackProvider` (and optionally swapped for simulations such as in-memory auth).
 
 For component-model simulations, the composition root can switch `AuthRepository`
 from `ApiAuthRepository` to `InMemoryAuthRepository` without changing

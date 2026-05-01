@@ -47,7 +47,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   final Set<int> _selectedWeekdays = <int>{};
   final Set<String> _selectedDaySessions = <String>{};
 
-  static const int _platformFee = 5;
+  static const int _platformFee = 0;
   static const List<(int, String)> _availableWeekdays = [
     (DateTime.monday, 'Monday'),
     (DateTime.tuesday, 'Tuesday'),
@@ -525,7 +525,9 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                   ),
                   const SizedBox(height: 8),
                   _PriceRow(
-                    label: 'Platform fee',
+                    label: _platformFee == 0
+                        ? 'Platform fee (calculated at checkout)'
+                        : 'Platform fee',
                     value: '$_platformFee ${l10n.etb}',
                   ),
                   const Divider(height: 24),
