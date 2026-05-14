@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:ridelink/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/payment_provider.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
@@ -22,7 +24,10 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PaymentProvider>().loadPaymentHistory();
+      final userId = context.read<AuthProvider>().user?.id;
+      if (userId != null && userId.isNotEmpty) {
+        context.read<PaymentProvider>().loadPaymentHistory(userId);
+      }
     });
   }
 
@@ -106,7 +111,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        payment.date,
+                        _formatDate(payment.date),
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
@@ -128,6 +133,16 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
                     ),
                     const SizedBox(height: 4),
                     _StatusChip(status: payment.status),
+                    if (payment.refundStatus != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Refund: ${payment.refundStatus}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -136,6 +151,12 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
         );
       },
     );
+  }
+
+  String _formatDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    return DateFormat('MMM d, yyyy • h:mm a').format(parsed.toLocal());
   }
 }
 

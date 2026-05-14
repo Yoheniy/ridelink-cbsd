@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -20,8 +21,10 @@ class _ChatScreenPageState extends State<ChatScreenPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadMessages(widget.conversationId);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final chatProvider = context.read<ChatProvider>();
+      await chatProvider.loadMessages(widget.conversationId);
+      await chatProvider.markAsRead(widget.conversationId);
     });
   }
 
@@ -60,13 +63,31 @@ class _ChatScreenPageState extends State<ChatScreenPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: const Text('Chat'),
+        actions: [],
       ),
       body: Column(
         children: [
           Expanded(
             child: chatProvider.loadingMessages
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : chatProvider.error != null && messages.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            chatProvider.error!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondaryLight,
+                                ),
+                          ),
+                        ),
+                      )
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(

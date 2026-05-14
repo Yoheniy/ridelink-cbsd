@@ -26,6 +26,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _showSuccess = false;
   BookingModel? _booking;
   bool _loadingBooking = true;
+  Map<String, dynamic>? _paymentStatus;
 
   @override
   void initState() {
@@ -65,6 +66,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         : '--:--';
     final seats = booking?.seatsBooked ?? 1;
     final amount = booking?.totalPrice ?? 0;
+    final breakdown = _paymentStatus?['payment'] as Map<String, dynamic>?;
+    final baseAmount = (breakdown?['baseAmount'] as num?)?.toDouble() ?? amount;
+    final platformFee = (breakdown?['platformFee'] as num?)?.toDouble() ?? 0;
+    final totalAmount = (breakdown?['amount'] as num?)?.toDouble() ?? amount;
+    final currency = (breakdown?['currency'] as String?) ?? l10n.etb;
 
     return Scaffold(
       appBar: AppBar(
@@ -110,7 +116,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${amount.toStringAsFixed(0)} ${l10n.etb}',
+                          '${totalAmount.toStringAsFixed(0)} $currency',
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium
@@ -118,6 +124,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildSummaryRow(
+                          '${baseAmount.toStringAsFixed(0)} $currency',
+                          'Subtotal',
+                        ),
+                        _buildSummaryRow(
+                          '${platformFee.toStringAsFixed(0)} $currency',
+                          'Platform fee',
                         ),
                       ],
                     ),
@@ -219,6 +234,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
               text: 'Done',
               onPressed: () => context.pop(),
             ),
+            if (_paymentStatus?['txRef'] != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                'TxRef: ${_paymentStatus?['txRef']}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),
@@ -249,7 +271,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (!mounted) return;
 
     if (result.result == ChapaPaymentResult.success) {
-      setState(() => _showSuccess = true);
+      final status = await paymentProvider.getBookingPaymentStatus(widget.bookingId);
+      if (!mounted) return;
+      final paid = status?['paid'] == true;
+      if (paid) {
+        _paymentStatus = status;
+        setState(() => _showSuccess = true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment submitted. Waiting for verification.'),
+          ),
+        );
+      }
     } else if (result.result == ChapaPaymentResult.failed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -1,4 +1,5 @@
 import '../../../../core/constants/enums.dart';
+import '../../../driver/trip/models/trip_model.dart';
 
 /// Matches the Prisma Booking model from the backend.
 class BookingModel {
@@ -19,7 +20,16 @@ class BookingModel {
   final String? tripOrigin;
   final String? tripDestination;
   final DateTime? tripDepartureTime;
+  final TripStatus? tripStatus;
+  final String? tripDriverId;
+  final List<RouteCoordinate> tripRouteCoordinates;
+  final double? tripDistanceKm;
+  final int? tripAvailableSeats;
+  final double? tripPricePerSeat;
   final String? driverName;
+  final String? passengerName;
+  final String? passengerPhone;
+  final String? passengerUserId;
 
   const BookingModel({
     required this.id,
@@ -37,13 +47,32 @@ class BookingModel {
     this.tripOrigin,
     this.tripDestination,
     this.tripDepartureTime,
+    this.tripStatus,
+    this.tripDriverId,
+    this.tripRouteCoordinates = const [],
+    this.tripDistanceKm,
+    this.tripAvailableSeats,
+    this.tripPricePerSeat,
     this.driverName,
+    this.passengerName,
+    this.passengerPhone,
+    this.passengerUserId,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     final trip = json['trip'] as Map<String, dynamic>?;
     final driver = trip?['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
+    final passenger = json['passenger'] as Map<String, dynamic>?;
+    final passengerUser = passenger?['user'] as Map<String, dynamic>?;
+    List<RouteCoordinate> tripCoords = const [];
+    final rawTripCoords = trip?['routeCoordinates'];
+    if (rawTripCoords is List) {
+      tripCoords = rawTripCoords
+          .whereType<Map<String, dynamic>>()
+          .map(RouteCoordinate.fromJson)
+          .toList();
+    }
 
     return BookingModel(
       id: json['id'] as String? ?? '',
@@ -67,13 +96,25 @@ class BookingModel {
       tripDepartureTime: trip?['departureTime'] != null
           ? DateTime.parse(trip!['departureTime'] as String)
           : null,
+      tripStatus: _parseTripStatus(trip?['status'] as String?),
+      tripDriverId: trip?['driverId'] as String?,
+      tripRouteCoordinates: tripCoords,
+      tripDistanceKm: (trip?['distanceKm'] as num?)?.toDouble(),
+      tripAvailableSeats: trip?['availableSeats'] as int?,
+      tripPricePerSeat: (trip?['pricePerSeat'] as num?)?.toDouble(),
       driverName: driverUser?['name'] as String?,
+      passengerName: passengerUser?['name'] as String?,
+      passengerPhone: passengerUser?['phone'] as String?,
+      passengerUserId: passengerUser?['id'] as String?,
     );
   }
 
   static BookingStatus _parseStatus(String? s) {
-    switch (s) {
+    final v = (s ?? '').trim().toLowerCase();
+    switch (v) {
       case 'confirmed':
+      case 'accepted':
+      case 'approved':
         return BookingStatus.confirmed;
       case 'cancelled':
       case 'canceled':
@@ -82,6 +123,25 @@ class BookingModel {
         return BookingStatus.completed;
       default:
         return BookingStatus.pending;
+    }
+  }
+
+  static TripStatus? _parseTripStatus(String? s) {
+    final v = (s ?? '').trim().toLowerCase();
+    switch (v) {
+      case 'scheduled':
+        return TripStatus.scheduled;
+      case 'inprogress':
+      case 'in_progress':
+      case 'in-progress':
+        return TripStatus.inProgress;
+      case 'completed':
+        return TripStatus.completed;
+      case 'cancelled':
+      case 'canceled':
+        return TripStatus.canceled;
+      default:
+        return null;
     }
   }
 }

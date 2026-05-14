@@ -1,45 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_endpoints.dart';
-
-class FeedbackItem {
-  final String id;
-  final String type;
-  final String fromUserId;
-  final String? fromUserName;
-  final int? rating;
-  final String? comment;
-  final DateTime? createdAt;
-
-  const FeedbackItem({
-    required this.id,
-    required this.type,
-    required this.fromUserId,
-    this.fromUserName,
-    this.rating,
-    this.comment,
-    this.createdAt,
-  });
-
-  factory FeedbackItem.fromJson(Map<String, dynamic> json) {
-    final fromUser = json['fromUser'] as Map<String, dynamic>?;
-    return FeedbackItem(
-      id: json['id'] as String? ?? '',
-      type: json['type'] as String? ?? '',
-      fromUserId: json['fromUserId'] as String? ?? '',
-      fromUserName: fromUser?['name'] as String?,
-      rating: json['rating'] as int?,
-      comment: json['comment'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String)
-          : null,
-    );
-  }
-}
+import '../models/feedback_item.dart';
+import '../repositories/feedback_repository.dart';
 
 class FeedbackProvider extends ChangeNotifier {
-  final ApiClient _apiClient;
+  final FeedbackRepository _repository;
 
   bool _submitting = false;
   bool _submitted = false;
@@ -56,7 +21,7 @@ class FeedbackProvider extends ChangeNotifier {
   List<FeedbackItem> get ratings =>
       _feedbackList.where((f) => f.type == 'rating').toList();
 
-  FeedbackProvider(this._apiClient);
+  FeedbackProvider(this._repository);
 
   Future<bool> submitRating({
     required String tripId,
@@ -71,14 +36,13 @@ class FeedbackProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.post(ApiEndpoints.feedback, data: {
-        'type': 'rating',
-        'fromUserId': fromUserId,
-        'toUserId': toUserId,
-        'tripId': tripId,
-        'rating': rating,
-        if (comment != null && comment.isNotEmpty) 'comment': comment,
-      });
+      await _repository.submitRating(
+        tripId: tripId,
+        fromUserId: fromUserId,
+        toUserId: toUserId,
+        rating: rating,
+        comment: comment,
+      );
       _submitting = false;
       _submitted = true;
       notifyListeners();
@@ -104,13 +68,12 @@ class FeedbackProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.post(ApiEndpoints.feedback, data: {
-        'type': 'report',
-        'fromUserId': fromUserId,
-        'toUserId': toUserId,
-        if (tripId != null) 'tripId': tripId,
-        'comment': comment,
-      });
+      await _repository.submitReport(
+        fromUserId: fromUserId,
+        toUserId: toUserId,
+        tripId: tripId,
+        comment: comment,
+      );
       _submitting = false;
       _submitted = true;
       notifyListeners();
@@ -129,14 +92,7 @@ class FeedbackProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response =
-          await _apiClient.get(ApiEndpoints.feedbackForUser(userId));
-      final list = response.data as List?;
-      if (list != null) {
-        _feedbackList = list
-            .map((e) => FeedbackItem.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      _feedbackList = await _repository.loadFeedbackForUser(userId);
     } catch (e) {
       debugPrint('Failed to load feedback: $e');
       _feedbackList = [];

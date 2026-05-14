@@ -1,0 +1,21 @@
+{
+  "name": "@ridelink/feature-y-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "build": "node -e \"console.log('(@ridelink/feature-y-app) no build step')\"",
+    "lint": "echo \"(feature-y-app) lint skipped\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "System assembly app for feature-y (composition only).",
+  "dependencies": {
+    "@ridelink/feature-y": "0.0.0",
+    "@ridelink/ui-components": "0.0.0",
+    "@ridelink/utils": "0.0.0"
+  }
+}

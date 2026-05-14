@@ -5,6 +5,24 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/convex_functions.dart';
 
+typedef ConvexAuthSync = Future<bool> Function({bool forceRefresh});
+
+/// Convex / JSON often delivers integers as [double]; avoid `as int?` casts.
+int _asInt(dynamic value, [int fallback = 0]) {
+  if (value == null) return fallback;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString()) ?? fallback;
+}
+
+DateTime? _asDateTimeFromMillis(dynamic value) {
+  if (value == null) return null;
+  final ms = _asInt(value, 0);
+  if (ms <= 0) return null;
+  return DateTime.fromMillisecondsSinceEpoch(ms);
+}
+
 class ChatConversation {
   final String id;
   final String tripId;
@@ -29,19 +47,27 @@ class ChatConversation {
   });
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
+    final dynamic lastMessageRaw = json['lastMessage'];
+    final String? lastMessageText = lastMessageRaw is String
+        ? lastMessageRaw
+        : lastMessageRaw is Map<String, dynamic>
+            ? lastMessageRaw['content'] as String?
+            : null;
+    final participantsList = json['participants'];
+    final participants = participantsList is List
+        ? participantsList.map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+        : <String>[];
     return ChatConversation(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
-      tripId: json['tripId'] as String? ?? '',
-      bookingId: json['bookingId'] as String? ?? '',
-      participants: (json['participants'] as List?)?.cast<String>() ?? [],
-      lastMessage: json['lastMessage'] as String?,
-      unreadCount: json['unreadCount'] as int? ?? 0,
-      lastMessageAt: json['lastMessageAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['lastMessageAt'] as int)
-          : null,
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      tripId: json['tripId']?.toString() ?? '',
+      bookingId: json['bookingId']?.toString() ?? '',
+      participants: participants,
+      lastMessage: lastMessageText,
+      unreadCount: _asInt(json['unreadCount'], 0),
+      lastMessageAt: _asDateTimeFromMillis(json['lastMessageAt']),
       displayName: json['displayName'] as String? ??
           json['name'] as String? ??
-          '',
+          'Trip chat',
     );
   }
 
@@ -71,12 +97,10 @@ class ChatMessage {
   factory ChatMessage.fromJson(
       Map<String, dynamic> json, String currentUserId) {
     return ChatMessage(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       text: json['content'] as String? ?? json['text'] as String? ?? '',
-      isSent: (json['senderId'] as String?) == currentUserId,
-      sentAt: json['_creationTime'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['_creationTime'] as int)
-          : null,
+      isSent: (json['senderId']?.toString()) == currentUserId,
+      sentAt: _asDateTimeFromMillis(json['_creationTime']),
     );
   }
 
@@ -91,6 +115,7 @@ class ChatMessage {
 class ChatProvider extends ChangeNotifier {
   final ConvexClient? _convex;
   String _currentUserId;
+  ConvexAuthSync? _syncAuth;
 
   SubscriptionHandle? _conversationsSubscription;
   SubscriptionHandle? _messagesSubscription;
@@ -101,6 +126,9 @@ class ChatProvider extends ChangeNotifier {
   bool _loadingMessages = false;
   String? _error;
   String? _activeConversationId;
+  bool _conversationsRetriedAfterAuth = false;
+  bool _messagesRetriedAfterAuth = false;
+  bool _authRecoveryInProgress = false;
 
   List<ChatConversation> get conversations => _conversations;
   List<ChatMessage> get messages => _messages;
@@ -108,40 +136,54 @@ class ChatProvider extends ChangeNotifier {
   bool get loadingMessages => _loadingMessages;
   String? get error => _error;
 
-  static final _mockConversations = [
-    const ChatConversation(
-      id: 'conv1',
-      displayName: 'Abebe Kebede',
-      lastMessage: "I'm 5 minutes away",
-    ),
-    const ChatConversation(
-      id: 'conv2',
-      displayName: 'Tigist Hailu',
-      lastMessage: 'Thanks for the ride!',
-    ),
-    const ChatConversation(
-      id: 'conv3',
-      displayName: 'Dawit Alemu',
-      lastMessage: 'See you at the pickup point',
-    ),
-  ];
-
-  static final _mockMessages = [
-    const ChatMessage(id: 'm1', text: "Hi! I'm on my way", isSent: false),
-    const ChatMessage(
-        id: 'm2',
-        text: "Great, I'll be at the pickup point",
-        isSent: true),
-    const ChatMessage(id: 'm3', text: "I'm 5 minutes away", isSent: false),
-    const ChatMessage(
-        id: 'm4', text: 'Perfect, see you soon!', isSent: true),
-  ];
-
   ChatProvider(this._convex, this._currentUserId);
+
+  void bindAuthSync(ConvexAuthSync syncAuth) {
+    _syncAuth = syncAuth;
+  }
 
   void setUserId(String userId) {
     if (_currentUserId != userId) {
       _currentUserId = userId;
+    }
+  }
+
+  Future<bool> _ensureReady() async {
+    if (_currentUserId.trim().isEmpty) {
+      _error = 'Chat is unavailable until user identity is loaded.';
+      return false;
+    }
+    final sync = _syncAuth;
+    if (sync == null) {
+      _error = 'Chat auth is not configured.';
+      return false;
+    }
+    final ok = await sync();
+    if (!ok) {
+      _error = 'Chat authentication failed. Please try again.';
+      return false;
+    }
+    return true;
+  }
+
+  bool _isAuthErrorText(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.contains('authentication required') ||
+        normalized.contains('unauthorized') ||
+        normalized.contains('forbidden') ||
+        normalized.contains('not authenticated');
+  }
+
+  Future<bool> _recoverAuth() async {
+    if (_authRecoveryInProgress) return false;
+    final sync = _syncAuth;
+    if (sync == null) return false;
+    _authRecoveryInProgress = true;
+    try {
+      final ok = await sync(forceRefresh: true);
+      return ok;
+    } finally {
+      _authRecoveryInProgress = false;
     }
   }
 
@@ -151,7 +193,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     if (_convex == null) {
-      _conversations = _mockConversations;
+      _conversations = [];
+      _error = 'Chat service is not configured for this build.';
+      _loadingConversations = false;
+      notifyListeners();
+      return;
+    }
+
+    if (!await _ensureReady()) {
+      _conversations = [];
       _loadingConversations = false;
       notifyListeners();
       return;
@@ -169,26 +219,50 @@ class ChatProvider extends ChangeNotifier {
                 .map((e) =>
                     ChatConversation.fromJson(e as Map<String, dynamic>))
                 .toList();
+            _conversationsRetriedAfterAuth = false;
           } catch (e) {
             debugPrint('Conversation parse error: $e');
-            _conversations = _mockConversations;
+            _conversations = [];
+            _error = 'Failed to parse conversations.';
           }
           _loadingConversations = false;
           notifyListeners();
         },
         onError: (message, value) {
           debugPrint('Conversations error: $message');
-          _conversations = _mockConversations;
+          if (_isAuthErrorText(message) && !_conversationsRetriedAfterAuth) {
+            _conversationsRetriedAfterAuth = true;
+            _retryConversationsAfterAuth();
+            return;
+          }
+          _conversations = [];
+          _error = message;
           _loadingConversations = false;
           notifyListeners();
         },
       );
     } catch (e) {
       debugPrint('Failed to subscribe to conversations: $e');
-      _conversations = _mockConversations;
+      _conversations = [];
+      _error = 'Failed to connect to chat conversations.';
       _loadingConversations = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _retryConversationsAfterAuth() async {
+    _loadingConversations = true;
+    _error = 'Refreshing chat authentication...';
+    notifyListeners();
+    final recovered = await _recoverAuth();
+    if (!recovered) {
+      _conversations = [];
+      _loadingConversations = false;
+      _error = 'Chat authentication expired. Please sign in again.';
+      notifyListeners();
+      return;
+    }
+    await loadConversations();
   }
 
   Future<void> loadMessages(String conversationId) async {
@@ -198,7 +272,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     if (_convex == null) {
-      _messages = _mockMessages;
+      _messages = [];
+      _error = 'Chat service is not configured for this build.';
+      _loadingMessages = false;
+      notifyListeners();
+      return;
+    }
+
+    if (!await _ensureReady()) {
+      _messages = [];
       _loadingMessages = false;
       notifyListeners();
       return;
@@ -216,26 +298,51 @@ class ChatProvider extends ChangeNotifier {
                 .map((e) => ChatMessage.fromJson(
                     e as Map<String, dynamic>, _currentUserId))
                 .toList();
+            _messagesRetriedAfterAuth = false;
           } catch (e) {
             debugPrint('Messages parse error: $e');
-            _messages = _mockMessages;
+            _messages = [];
+            _error = 'Failed to parse messages.';
           }
           _loadingMessages = false;
+          markAsRead(conversationId);
           notifyListeners();
         },
         onError: (message, value) {
           debugPrint('Messages error: $message');
-          _messages = _mockMessages;
+          if (_isAuthErrorText(message) && !_messagesRetriedAfterAuth) {
+            _messagesRetriedAfterAuth = true;
+            _retryMessagesAfterAuth(conversationId);
+            return;
+          }
+          _messages = [];
+          _error = message;
           _loadingMessages = false;
           notifyListeners();
         },
       );
     } catch (e) {
       debugPrint('Failed to subscribe to messages: $e');
-      _messages = _mockMessages;
+      _messages = [];
+      _error = 'Failed to connect to conversation.';
       _loadingMessages = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _retryMessagesAfterAuth(String conversationId) async {
+    _loadingMessages = true;
+    _error = 'Refreshing chat authentication...';
+    notifyListeners();
+    final recovered = await _recoverAuth();
+    if (!recovered) {
+      _messages = [];
+      _loadingMessages = false;
+      _error = 'Chat authentication expired. Please sign in again.';
+      notifyListeners();
+      return;
+    }
+    await loadMessages(conversationId);
   }
 
   Future<void> sendMessage(String content) async {
@@ -251,12 +358,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _convex?.mutation(
-        name: ConvexFunctions.sendMessage,
-        args: {
-          'conversationId': _activeConversationId!,
-          'content': content,
-        },
+      await _runWithAuthRetry(
+        operationName: 'sendMessage',
+        action: () => _convex!.mutation(
+          name: ConvexFunctions.sendMessage,
+          args: {
+            'conversationId': _activeConversationId!,
+            'content': content,
+          },
+        ),
       );
     } catch (e) {
       debugPrint('Failed to send message: $e');
@@ -267,12 +377,59 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> markAsRead(String conversationId) async {
     try {
-      await _convex?.mutation(
-        name: ConvexFunctions.markMessagesAsRead,
-        args: {'conversationId': conversationId},
+      await _runWithAuthRetry(
+        operationName: 'markMessagesAsRead',
+        action: () => _convex!.mutation(
+          name: ConvexFunctions.markMessagesAsRead,
+          args: {'conversationId': conversationId},
+        ),
       );
     } catch (e) {
       debugPrint('Failed to mark messages as read: $e');
+    }
+  }
+
+  Future<String?> getConversationIdByBooking(String bookingId) async {
+    if (_convex == null || bookingId.trim().isEmpty) return null;
+    try {
+      final value = await _runWithAuthRetry<String>(
+        operationName: 'getConversationByBooking',
+        action: () => _convex.query(
+          ConvexFunctions.getConversationByBooking,
+          {'bookingId': bookingId},
+        ),
+      );
+      if (value == null) return null;
+      if (value.trim().isEmpty || value == 'null') return null;
+      final decoded = jsonDecode(value);
+      if (decoded is Map) return decoded['_id']?.toString();
+      return null;
+    } catch (e) {
+      debugPrint('Failed to resolve conversation by booking: $e');
+      return null;
+    }
+  }
+
+  Future<T?> _runWithAuthRetry<T>({
+    required String operationName,
+    required Future<T?> Function() action,
+  }) async {
+    if (!await _ensureReady()) {
+      throw StateError(_error ?? 'Chat auth not ready.');
+    }
+    try {
+      return await action();
+    } catch (e) {
+      final message = e.toString();
+      if (_isAuthErrorText(message)) {
+        final recovered = await _recoverAuth();
+        if (recovered) {
+          return await action();
+        }
+        _error = 'Chat authentication expired. Please sign in again.';
+      }
+      debugPrint('Chat operation $operationName failed: $e');
+      rethrow;
     }
   }
 

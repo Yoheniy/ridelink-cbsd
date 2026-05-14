@@ -1,0 +1,19 @@
+{
+  "name": "@ridelink/feature-x",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node -e \"console.log('(@ridelink/feature-x) no build step (plain JS)')\"",
+    "lint": "echo \"(feature-x) lint skipped\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Feature package X: trip recommendation widgets and helpers.",
+  "dependencies": {
+    "@ridelink/ui-components": "0.0.0",
+    "@ridelink/utils": "0.0.0"
+  }
+}

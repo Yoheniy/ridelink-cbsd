@@ -1,13 +1,18 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class VerificationScreen extends StatefulWidget {
@@ -22,7 +27,60 @@ class _VerificationScreenState extends State<VerificationScreen> {
   File? _nationalIdBack;
   File? _driversLicense;
   bool _isSubmitting = false;
-  bool _submitted = false;
+  bool _loadingStatus = true;
+  String _verificationStatus = 'pending';
+  String? _statusError;
+  List<Map<String, dynamic>> _documents = [];
+
+  final TextEditingController _nationalIdController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authUser = context.read<AuthProvider>().user;
+      if (authUser != null) {
+        _phoneController.text = authUser.phone;
+        _nationalIdController.text = authUser.nationalId;
+      }
+      _loadVerificationStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _nationalIdController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadVerificationStatus() async {
+    setState(() {
+      _loadingStatus = true;
+      _statusError = null;
+    });
+    try {
+      final api = context.read<ApiClient>();
+      final response = await api.get(ApiEndpoints.verificationStatus);
+      final data = response.data as Map<String, dynamic>? ?? {};
+      final docs = (data['documents'] as List? ?? const [])
+          .map((e) => (e as Map).cast<String, dynamic>())
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _verificationStatus = (data['status']?.toString() ?? 'pending').toLowerCase();
+        _documents = docs;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _statusError = 'Failed to load verification status');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingStatus = false);
+      }
+    }
+  }
 
   Future<void> _pickImage(String type) async {
     final picker = ImagePicker();
@@ -78,6 +136,23 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
 
+    final phone = _phoneController.text.trim();
+    final nationalId = _nationalIdController.text.trim();
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your phone number')),
+      );
+      return;
+    }
+
+    if (nationalId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your national ID number')),
+      );
+      return;
+    }
+
     if (_nationalIdFront == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload the front of your National ID')),
@@ -93,66 +168,132 @@ class _VerificationScreenState extends State<VerificationScreen> {
     }
 
     setState(() => _isSubmitting = true);
+    try {
+      final api = context.read<ApiClient>();
+      final auth = context.read<AuthProvider>();
 
-    // TODO: Upload documents via API when endpoint is available
-    await Future.delayed(const Duration(seconds: 2));
+      // Upload required ID docs (front/back) as ID documents.
+      final frontDocId =
+          await _uploadDocument(file: _nationalIdFront!, docType: 'ID');
+      if (_nationalIdBack != null) {
+        await _uploadDocument(file: _nationalIdBack!, docType: 'ID');
+      }
+      if (user.isDriver && _driversLicense != null) {
+        await _uploadDocument(file: _driversLicense!, docType: 'LICENSE');
+      }
+
+      await api.patch(
+        ApiEndpoints.completeProfile,
+        data: {
+          'phone': phone,
+          'nationalId': nationalId,
+          'idDocumentId': frontDocId,
+        },
+      );
+
+      await auth.checkAuthStatus();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Documents uploaded successfully. Verification pending.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload documents: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
 
     if (!mounted) return;
     setState(() {
       _isSubmitting = false;
-      _submitted = true;
     });
+    await _loadVerificationStatus();
+  }
+
+  Future<String> _uploadDocument({
+    required File file,
+    required String docType,
+  }) async {
+    final api = context.read<ApiClient>();
+    final fileName = file.path.split('/').last;
+    final contentType = lookupMimeType(file.path) ?? 'application/octet-stream';
+
+    Map<String, dynamic>? payload;
+    try {
+      final response = await api.post(
+        '/files/upload',
+        data: {
+          'fileName': fileName,
+          'contentType': contentType,
+          'docType': docType,
+        },
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        if (data['data'] is Map<String, dynamic>) {
+          payload = (data['data'] as Map).cast<String, dynamic>();
+        } else {
+          payload = data;
+        }
+      }
+    } catch (_) {
+      final response = await api.post(
+        ApiEndpoints.presignUpload,
+        data: {
+          'fileName': fileName,
+          'contentType': contentType,
+          'docType': docType,
+        },
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        if (data['data'] is Map<String, dynamic>) {
+          payload = (data['data'] as Map).cast<String, dynamic>();
+        } else {
+          payload = data;
+        }
+      }
+    }
+
+    final putUrl = payload?['url']?.toString();
+    final documentId = payload?['documentId']?.toString();
+    if (putUrl == null || documentId == null) {
+      throw Exception('Upload URL or document id missing');
+    }
+
+    final dio = Dio();
+    final length = await file.length();
+    await dio.putUri(
+      Uri.parse(putUrl),
+      data: file.openRead(),
+      options: Options(
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': length,
+        },
+      ),
+    );
+
+    try {
+      await api.post('/files/complete', data: {'documentId': documentId});
+    } catch (_) {
+      await api.post(ApiEndpoints.completeUpload, data: {'documentId': documentId});
+    }
+
+    return documentId;
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final isDriver = user?.isDriver ?? false;
-
-    if (_submitted) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Verification')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check, size: 48, color: AppColors.primary),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Documents Submitted',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Your documents are being reviewed. You will be notified once verification is complete.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondaryLight,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                AppButton(
-                  text: 'Done',
-                  onPressed: () => context.pop(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Identity Verification')),
@@ -165,6 +306,18 @@ class _VerificationScreenState extends State<VerificationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_loadingStatus)
+                    const LinearProgressIndicator(minHeight: 2),
+                  if (_statusError != null) ...[
+                    Text(
+                      _statusError!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.error),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Row(
                     children: [
                       Icon(Icons.info_outline, color: AppColors.primary),
@@ -179,7 +332,70 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    'Current status: ${_verificationStatus.toUpperCase()}',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: _verificationStatus == 'approved'
+                              ? AppColors.success
+                              : _verificationStatus == 'rejected'
+                                  ? AppColors.error
+                                  : AppColors.warning,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
                     'Upload clear photos of your documents. All information is securely stored and used only for verification.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondaryLight,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            if (_documents.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _documents
+                      .map(
+                        (d) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            '${d['type']}: ${d['status']}${d['rejectionReason'] != null ? ' - ${d['rejectionReason']}' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Personal details',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _phoneController,
+                    labelText: 'Phone number',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _nationalIdController,
+                    labelText: 'National ID number',
+                    prefixIcon: Icons.badge_outlined,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'These must match your documents. Your account stays pending until an admin approves your upload.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondaryLight,
                         ),
@@ -223,7 +439,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
             ],
             const SizedBox(height: 32),
             AppButton(
-              text: 'Submit for Verification',
+              text: _verificationStatus == 'approved'
+                  ? 'Verification Complete'
+                  : 'Submit for Verification',
               onPressed: _isSubmitting ? null : _submit,
               isLoading: _isSubmitting,
             ),
@@ -256,12 +474,15 @@ class _DocumentUploadCard extends StatelessWidget {
               ? AppColors.primary.withValues(alpha: 0.05)
               : AppColors.lightBackground,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: file != null
-                ? AppColors.primary
-                : AppColors.textHintLight.withValues(alpha: 0.3),
-            width: file != null ? 2 : 1,
-          ),
+          boxShadow: file != null
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : AppShadows.softCard(context),
         ),
         child: file != null
             ? Stack(
